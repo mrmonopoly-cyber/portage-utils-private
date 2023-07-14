@@ -1,0 +1,11 @@
+Checking a-b/pkg ...
+ MD5-DIGEST: /bin/bad-md5
+ SHA1-DIGEST: /bin/bad-sha1
+ AFK: /bin/broken-sym
+ AFK: /bin/missing-sym
+ AFK: /missing-dir
+ AFK: /missing-dir/missing-file
+ AFK: /missing-dir/missing-sym
+  * 3 out of 10 files are good (3 files were ignored)
+Checking virtual/pkg ...
+  * 0 out of 0 files are good

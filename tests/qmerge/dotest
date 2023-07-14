@@ -1,0 +1,186 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+set -e
+
+unset CONFIG_PROTECT CONFIG_PROTECT_MASK EPREFIX
+
+export QMERGE=1
+export PKGDIR=${as}/packages
+export FEATURES='config-protect-if-modified'
+
+mktmpdir
+
+export ROOT=${PWD}/root
+export PORTAGE_TMPDIR=${PWD}
+export Q_VDB=/var/db/pkg
+
+mkdir -p "${ROOT}/var/db/pkg"
+
+set +e
+
+# sanity check on environment
+q -ev
+qlist -kIv
+
+# Do a merge into an empty tree.
+
+out=$(yes | qmerge -F qmerge-test-1.3)
+tend $? "qmerge-test: [N] basic merge" || die "${out}"
+
+[[ ${out} != *"FAIL"* ]]
+tend $? "qmerge-test: [N] no FAIL messages" || die "${out}"
+
+order=$(echo "${out}" | awk '$1 == "@@@" && $2 ~ /^pkg_/ { printf "%s ", $NF }')
+[[ ${order} == "pkg_pretend pkg_setup pkg_preinst pkg_postinst " ]]
+tend $? "qmerge-test: [N] pkg_* order of execution" || die "$(printf '%s\n' "${order}" "${out}")"
+
+ls -d "${ROOT}"/var/db/pkg/sys-devel/qmerge-test-* >/dev/null
+tend $? "qmerge-test: [N] vdb installed"
+
+[[ -x ${ROOT}/usr/bin/qmerge-test && \
+   -f ${ROOT}/etc/some.conf && \
+   -f ${ROOT}/etc/another.conf ]]
+tend $? "qmerge-test: [N] installed expected files" || die "$(treedir "${ROOT}")"
+
+# Now do a re-emerge.
+
+out=$(yes | qmerge -F "<qmerge-test-2")
+tend $? "qmerge-test: [R] re-emerge" || die "${out}"
+
+[[ -x ${ROOT}/usr/bin/qmerge-test ]]
+tend $? "qmerge-test: [R] installed expected files" || die "$(treedir "${ROOT}")"
+
+order=$(echo "${out}" | awk '$1 == "@@@" && $2 ~ /^pkg_/ { printf "%s ", $NF }')
+# PMS 9.2
+[[ ${order} == "pkg_pretend pkg_setup pkg_preinst pkg_prerm pkg_postrm pkg_postinst " ]]
+tend $? "qmerge-test: [R] pkg_* order of execution" || die "$(printf '%s\n' "${order}" "${out}")"
+
+[[ -x ${ROOT}/usr/bin/qmerge-test && \
+   -f ${ROOT}/etc/some.conf && \
+   -f ${ROOT}/etc/another.conf && \
+   -f ${ROOT}/etc/._cfg0000_some.conf ]]
+tend $? "qmerge-test: [R] re-installed expected files" || die "$(treedir "${ROOT}")"
+
+# upgrade to latest version
+
+out=$(yes | qmerge -F qmerge-test)
+tend $? "qmerge-test: [U] update" || die "${out}"
+
+[[ $(qlist -Iv qmerge-test) == "sys-devel/qmerge-test-2.0" ]]
+tend $? "qmerge-test: qlist does not report version 2.0 installed" || die "$(qlist -Iv qmerge-test;qlist -kIv) ${out}"
+
+[[ ! -x ${ROOT}/usr/bin/qmerge-test ]]
+tend $? "qmerge-test: binary from version 1 does not exist" || die "$(treedir "${ROOT}")"
+[[ -x ${ROOT}/usr/bin/qmerge-test2 ]]
+tend $? "qmerge-test: binary from version 2 exists" || die "$(treedir "${ROOT}")"
+
+# Finally do an unmerge.
+
+echo alkdsjfalksdf > "${ROOT}/etc/some.conf"
+
+rm -f "${ROOT}/etc/._cfg0000_some.conf"
+out=$(yes | qmerge -FU qmerge-test)
+tend $? "qmerge-test: [C] uninstall" || die "${out}"
+
+order=$(echo "${out}" | awk '$1 == "@@@" { printf "%s ", $NF }')
+[[ ${order} == "pkg_prerm pkg_postrm " ]]
+tend $? "qmerge-test: [C] pkg_* order of execution" || die "$(printf '%s\n' "${order}" "${out}")"
+
+[[ ! -x ${ROOT}/usr/bin/qmerge-test && \
+     -f ${ROOT}/etc/some.conf && \
+   ! -f ${ROOT}/etc/another.conf && \
+   ! -d ${ROOT}/var/db/pkg/sys-devel ]]
+tend $? "qmerge-test: [C] uninstalled expected files" || die "$(treedir "${ROOT}")"
+
+# cleanup
+rm -Rf "${ROOT}"/etc
+
+# check if INSTALL_MASK is applied well
+export INSTALL_MASK="/etc"
+out=$(yes | qmerge -F qmerge-test)
+tend $? "qmerge-test: [M] install no /etc" || die "${out}"
+[[ ! -e ${ROOT}/etc ]]
+tend $? "qmerge-test: [M] found no /etc" || die "$(treedir "${ROOT}")"
+
+out=$(yes | qmerge -FU qmerge-test)
+tend $? "qmerge-test: [U] uninstall" || die "${out}"
+[[ ! -e ${ROOT}/etc ]]
+tend $? "qmerge-test: [U] /etc removed" || die "$(treedir "${ROOT}")"
+
+export INSTALL_MASK="/etc -/etc/some.conf"
+out=$(yes | qmerge -F qmerge-test)
+tend $? "qmerge-test: [M] install only /etc/some.conf" || die "${out}"
+[[ ! -e ${ROOT}/etc/another.conf ]]
+tend $? "qmerge-test: [M] found /etc/another.conf" || die "$(treedir "${ROOT}")"
+
+out=$(yes | qmerge -FU qmerge-test)
+tend $? "qmerge-test: [U] uninstall" || die "${out}"
+[[ ! -e ${ROOT}/etc ]]
+tend $? "qmerge-test: [U] /etc removed" || die "$(treedir "${ROOT}")"
+
+export INSTALL_MASK="/usr -/usr/bin/dummy"
+out=$(yes | qmerge -F qmerge-test)
+tend $? "qmerge-test: [M] install only /usr/bin/dummy" || die "${out}"
+[[ -e ${ROOT}/usr/bin/dummy ]]
+tend $? "qmerge-test: [M] found /usr/bin/dummy" || die "$(treedir "${ROOT}")"
+[[ ! -e ${ROOT}/usr/bin/qmerge-test ]]
+tend $? "qmerge-test: [M] /usr/bin/qmerge-test absent" || die "$(treedir "${ROOT}")"
+
+out=$(yes | qmerge -FU qmerge-test)
+tend $? "qmerge-test: [U] uninstall" || die "${out}"
+[[ ! -e ${ROOT}/usr/bin/dummy ]]
+tend $? "qmerge-test: [U] /usr/bin/dummy removed" || die "$(treedir "${ROOT}")"
+
+export INSTALL_MASK="/usr -/usr/bin /usr/bin/dummy"
+out=$(yes | qmerge -F qmerge-test)
+tend $? "qmerge-test: [M] install except /usr/bin/dummy" || die "${out}"
+[[ ! -e ${ROOT}/usr/bin/dummy ]]
+tend $? "qmerge-test: [M] found no /usr/bin/dummy" || die "$(treedir "${ROOT}")"
+[[ -e ${ROOT}/usr/bin/qmerge-test2 ]]
+tend $? "qmerge-test: [M] found /usr/bin/qmerge-test2" || die "$(treedir "${ROOT}")"
+
+out=$(yes | qmerge -FU qmerge-test)
+tend $? "qmerge-test: [U] uninstall" || die "${out}"
+[[ ! -e ${ROOT}/usr/bin/qmerge-test2 ]]
+tend $? "qmerge-test: [U] /usr/bin/qmerge-test2 removed" || die "$(treedir "${ROOT}")"
+
+# try all compressions we know to see if we handle them properly
+pkgver=qmerge-test-1.3
+rev=0
+mkdir -p pkgs/sys-devel
+qtbz2 -s ${PKGDIR}/sys-devel/${pkgver}.tbz2
+export PKGDIR=${PWD}/pkgs
+bzip2 -dc < ${pkgver}.tar.bz2 > ${pkgver}.tar
+for compr in "" brotli gzip bzip2 xz lz4 zstd lzip lzop ; do
+	if [[ ${compr} != "" ]] ; then
+		cexec=$(type -P ${compr} 2>/dev/null)
+		echo "compressor: ${compr} = ${cexec}"
+		[[ -x ${cexec} ]] || continue
+		f=${pkgver}.tar.${compr}
+		${cexec} -c < ${pkgver}.tar > ${f}
+	else
+		echo "plain tar"
+		f=${pkgver}.tar
+	fi
+	: $((rev++))
+	qtbz2 -j ${f} ${pkgver}.xpak pkgs/sys-devel/${pkgver}-r${rev}.tbz2
+	ls -l pkgs/sys-devel/${pkgver}-r${rev}.tbz2
+	qlist -kIv | tee /dev/stderr | wc -l
+
+	# see if we can install this package
+	out=$(yes | qmerge -Fv =${pkgver}-r${rev})
+	tend $? "qmerge-test: [X] install ${pkgver}-r${rev}" || die "${out}"
+	qlist -Iv
+	out=$(yes | qmerge -FU qmerge-test)
+	tend $? "qmerge-test: [X] uninstall ${pkgver}-r${rev}" || die "${out}"
+
+	rm pkgs/sys-devel/${pkgver}-r${rev}.tbz2
+done
+
+cleantmpdir
+
+set -e
+
+end

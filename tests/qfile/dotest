@@ -1,0 +1,49 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+export ROOT=${as}/root
+export Q_VDB=/
+
+tests=(
+	"qfile -q /bin/bash /bin/XXXXX"
+	"app-shells/bash"
+
+	"qfile -o /bin/bash /bin/XXXXX"
+	"/bin/XXXXX"
+
+	"qfile -o -x bash /bin/bash"
+	"/bin/bash"
+
+	"qfile -o -x app-shells/bash /bin/bash"
+	"/bin/bash"
+
+	"qfile -o -x bash:0 /bin/bash"
+	"/bin/bash"
+
+	"qfile -o -x app-shells/bash:0 /bin/bash"
+	"/bin/bash"
+
+	"(cd ${ROOT}/bin; qfile -Rq bash)"
+	"app-shells/bash"
+
+	"(cd ${ROOT}/; qfile -o whatever)"
+	"whatever"
+)
+
+set -- "${tests[@]}"
+while [[ $# -gt 0 ]] ; do
+	test=$1; shift
+	exp=$1; shift
+
+	res=$(eval ${test})
+	[[ "${res}" == "${exp}" ]]
+	if ! tend $? "${test}" ; then
+		(
+		echo " - expected result was: ${exp}"
+		echo " - actual result was:   ${res}"
+		) > /dev/stderr
+	fi
+done
+
+end

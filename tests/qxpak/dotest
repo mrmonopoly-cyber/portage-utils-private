@@ -1,0 +1,68 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+set -e
+
+mktmpdir
+
+files="a b c d e f"
+for l in ${files} ; do
+	echo $l > $l
+done
+mkdir subdir
+cp ${files} subdir
+
+################
+qxpak -c xpak ${files}
+qxpak -l -v xpak > list
+diff -u list ${as}/list01.good
+tpass "check basic creation"
+
+################
+for l in ${files} ; do
+	mv $l $l.good
+	qxpak -x xpak $l
+	diff -u $l $l.good
+	tpass "single file extraction: $l"
+done
+
+################
+rm ${files}
+qxpak -x xpak ${files}
+for l in ${files} ; do
+	diff -u $l $l.good
+done
+tpass "multi file extraction"
+
+################
+mkdir new
+qxpak -d new -x xpak ${files}
+for l in ${files} ; do
+	diff -u $l new/$l
+done
+tpass "check unpacking to diff dir"
+
+################
+rm -f ${files} ?.good
+qxpak -c xpak -d new ${files}
+qxpak -l -v xpak > list
+diff -u list ${as}/list01.good
+qxpak -d . -x xpak ${files}
+tpass "check creating from diff dir"
+
+################
+qxpak -c xpak `echo ${files} | tr ' ' '\n' | tac`
+qxpak -l -v xpak > list
+diff -u list ${as}/list02.good
+tpass "check creation with clobbered output and file order"
+
+################
+qxpak -c xpak subdir
+qxpak -l -v xpak | sort > list
+diff -u list ${as}/list01.good
+tpass "check creation with subdir"
+
+cleantmpdir
+
+end

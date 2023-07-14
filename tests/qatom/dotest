@@ -1,0 +1,98 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+test() {
+	local num=$1 exp=$2 ret=0 out
+	shift 2
+	set -- qatom "$@"
+	out=$("$@") || ret=$?
+	if [[ ${num} == l* ]] ; then
+		out=$(echo "${out}" | sed -r -e 's: +: :g' -e 's: *$::')
+	fi
+	if [[ ${out} != "${exp}" ]] ; then
+		tfail "output does not match: wanted '${exp}' but got '${out}'"
+	elif [[ ${ret} -ne 0 ]] ; then
+		tfail "exit code (${ret}) does not match expected (0)"
+	fi
+	tend $? "$*"
+}
+
+# Legacy format.
+test l01 "<unset> pkg <unset>" "pkg"
+test l02 "cat pkg <unset>" "cat/pkg"
+test l03 "cat pkg 123" "cat/pkg-123"
+test l04 "cat pkg 123 r4" "cat/pkg-123-r4"
+test l05 "cat pkg 123 r4 5" "cat/pkg-123-r4:5"
+test l06 "cat pkg 123 5" "cat/pkg-123:5"
+test l07 "cat pkg 123 >=" ">=cat/pkg-123"
+test l07 "cat pkg 123 = *" "=cat/pkg-123*"
+
+# Explicit format.
+test f01 "cat"        -F '%{CATEGORY}' "cat/pkg"
+test f19 "cat"        -F '%[CATEGORY]' "cat/pkg"
+test f02 "<unset>"    -F '%{CATEGORY}' "pkg"
+test f03 ""           -F '%[CATEGORY]' "pkg"
+test f04 "cat"        -F '%{CATEGORY}' "cat/pkg-123-r4:5"
+test f05 "pkg-123"    -F '%{P}'        "cat/pkg-123-r4:5"
+test f06 "pkg"        -F '%{PN}'       "cat/pkg-123-r4:5"
+test f07 "123"        -F '%{PV}'       "cat/pkg-123-r4:5"
+test f08 "123-r4"     -F '%{PVR}'      "cat/pkg-123-r4:5"
+test f09 "pkg-123-r4" -F '%{PF}'       "cat/pkg-123-r4:5"
+test f10 "r4"         -F '%{PR}'       "cat/pkg-123-r4:5"
+test f11 "5"          -F '%{SLOT}'     "cat/pkg-123-r4:5"
+test f18 "repo"       -F '%{REPO}'     "cat/pkg-123-r4:5::repo"
+test f12 "pkg-c"      -F '%{PN}'       "cat/pkg-c"  # bug #639978
+test f13 "mod_perl 1.5_p20180304 r5" \
+                      -F '%{PN} %{PV} %{PR}' \
+                                       "dev-libs/mod_perl-1.5_p20180304-r5"
+test f14 "foo-r1"     -F '%{PN}'       "foo-r1"     # bug #526596
+test f15 "app-emacs diff-mode-" \
+                      -F '%{CATEGORY} %{PN}' \
+                                       "app-emacs/diff-mode-"
+test f16 "media-fonts font-adobe-100dpi 1.0.3 r1" \
+                      -F '%{CATEGORY} %{PN} %{PV} %{PR}' \
+                                       "media-fonts/font-adobe-100dpi-1.0.3-r1"
+test f17 "games-rpg eschalon-book-1-demo 106 r1" \
+                      -F '%{CATEGORY} %{PN} %{PV} %{PR}' \
+                                       "games-rpg/eschalon-book-1-demo-106-r1"
+test f18 "bla"        -F 'bla'         "cat/pkg-c"  # bug #687416
+test f19 ":pkg-c-1.4" -F ':%{PN}-1.4'  "cat/pkg-c"  # bug #687416
+# Joining format.
+test f20 "cat/pkg"    -F '%[CATEGORY]%[PF]' \
+                                       "cat/pkg"
+test f21 "pkg-123-r4:5::repo" \
+                      -F '%[PF]%[SLOT]%[REPO]' \
+                                       "cat/pkg-123-r4:5::repo"
+# Puppet portage provider
+test p01 "[app-admin] [syslog-ng] [] [] [] [] []" \
+                      -F "[%[CATEGORY]] [%[PN]] [%[PV]] [%[PR]] [%[SLOT]] [%[pfx]] [%[sfx]]" \
+                                       "app-admin/syslog-ng"
+
+# Comparison tests
+test c01 "cat/pkg-123-r3 == pkg" \
+	-c 'cat/pkg-123-r3' 'pkg'
+test c02 "cat/pkg-123-r3 == !<cat/pkg-123" \
+	-c 'cat/pkg-123-r3' '!<cat/pkg-123'
+test c03 "cat/pkg-123-r3 != !<cat/pkg-124" \
+	-c 'cat/pkg-123-r3' '!<cat/pkg-124'
+test c04 "cat/pkg-123-r3 < cat/pkg-123-r4" \
+	-c 'cat/pkg-123-r3' 'cat/pkg-123-r4'
+test c05 "cat/pkg-123 > cat/pkg-12.3" \
+	-c 'cat/pkg-123' 'cat/pkg-12.3'
+test c07 "cat/pkg-123 == cat/pkg-123:bar" \
+	-c 'cat/pkg-123' 'cat/pkg-123:bar'              # bug 668418
+test c08 "cat/pkg-123:foo != cat/pkg-123:bar" \
+	-c 'cat/pkg-123:foo' 'cat/pkg-123:bar'
+test c09 "cat/pkg-123:foo == cat/pkg-123:foo=" \
+	-c 'cat/pkg-123:foo' 'cat/pkg-123:foo='
+test c10 "cat/pkg-123:foo != cat/pkg-123:=" \
+	-c 'cat/pkg-123:foo' 'cat/pkg-123:='            # slot vs empty slot
+test c11 "cat/pkg-123[!foo,bar(+),baz=] == cat/pkg-123" \
+	-c 'cat/pkg-123[!foo,bar(+),baz=]' 'cat/pkg-123'
+test c12 "cat/pkg-123:0/25 == ^cat/pkg-123:0/26" \
+	-c 'cat/pkg-123:0/25' '^cat/pkg-123:0/26'       # bug 683430 antislot
+test c13 "cat/pkg-123 != ^cat/pkg-123:0/26" \
+	-c 'cat/pkg-123' '^cat/pkg-123:0/26'
+
+end

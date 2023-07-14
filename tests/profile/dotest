@@ -1,0 +1,50 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+# Usage: <profile dir suffix> <variable> <value>
+tenv() {
+	local profile=$1 var=$2 exp=$3
+
+	export PORTAGE_CONFIGROOT=${as}/profile${profile}
+	res=$(q -e "${var}")
+
+	[[ ${res} == "${exp}" ]]
+	if ! tend $? "(${profile}) ${var} = ${exp}" ; then
+		echo "we got: {${res}}"
+		echo "we want: {${exp}}"
+		echo "full env: $(q -ev "${var}")"
+	fi
+}
+
+# clear out env vars that would affect our tests
+unset $(q -e | cut -d= -f1)
+
+# test vars that should default to known values.
+# cannot test too many more as portage's default
+# make.globals will kick in.  also can't test
+# some vars (e.g. PORTAGE_BINHOST) that we default
+# on some platforms.
+tenv inv ROOT /
+tenv inv ARCH
+
+# this validates simple stuff
+tenv 1 ARCH x86
+tenv 1 INSTALL_MASK "imask x b"
+
+# this validates -* behavior
+tenv 1 CONFIG_PROTECT
+
+# this indirectly validates relative sourcing
+tenv 1 FEATURES feat
+tenv 1 CONFIG_PROTECT_MASK asdf
+tenv 1 ACCEPT_LICENSE lic
+
+# this validates trailing comment handling #416585
+tenv 1 PORTAGE_BINHOST http://someurl/
+tenv 1 NOCOLOR 1
+
+# this validates pathological vars
+tenv 1 PKGDIR " "
+
+end

@@ -1,0 +1,22 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+files=$(xzcat ebuildlist.xz)
+
+printf "atom_explode():"
+time echo "${files}" | "$b"/e > "$b"/me || exit $?
+echo
+
+if [[ -n ${QATOM_COMPARE_TO_PORTAGE} ]] ; then
+	printf "portage:"
+	time echo "${files}" | "$s"/atom-explode.py > "$b"/py
+	echo
+else
+	xzcat portageatoms.xz > "$b"/py
+fi
+
+diff -U 0 "$b"/me "$b"/py
+tend $? "portage-utils vs portage atom parsing"
+
+end

@@ -1,0 +1,117 @@
+. @CONFIG_EPREFIX@lib/gentoo/functions.sh 2>/dev/null || :
+
+# get the built q in PATH
+PATH="@abs_top_builddir@:$PATH"
+
+setup_env() {
+	local a=${0%/*}
+	[[ ${a} == "." ]] && a=${PWD}
+	a=${a##*/}
+
+	: ${b:=@builddir@}
+	: ${s:=@srcdir@}
+	: ${atb:=@abs_top_builddir@}
+	: ${ats:=@abs_top_srcdir@}
+	: ${ab:=${atb}/tests/${a}}
+	: ${as:=${ats}/tests/${a}}
+
+	if [[ -z ${GOOD} ]] && [[ -d ${ats}/.git ]] ; then
+		eval $(eval_ecolors 2>/dev/null)
+	fi
+}
+setup_env
+
+# clean any random vars from the host system
+unset ROOT PORTAGE_CONFIGROOT PORTAGE_QUIET PORTDIR NOCOLOR
+# but make sure we don't implicitly rely on user's setup
+export PORTAGE_CONFIGROOT="${ab}/not/a/real/path"
+# Always use UTC for timestamps to keep tests stable. #551806
+export TZ='UTC 0'
+
+# create symlinks for applets
+q -i -q
+
+# inject valgrind wrapper if necessary, unfortunately valgrind on Ubuntu
+# causes qmanifest to print stuff double, so skip it for that applet
+dovalgrind=${Q_RUN_WITH_VALGRIND}
+[[ ${RUNNER_OS}:${as##*/} == Linux:qmanifest ]] && dovalgrind=
+if [[ -n ${dovalgrind} ]] ; then
+	chmod 755 "@abs_top_srcdir@/tests/valgrind-wrapper/qvalgrind"
+	for f in @abs_top_builddir@/q?* ; do
+		[[ -L ${f} ]] || continue
+		f=${f##*/}
+		eval "$f() { "@abs_top_srcdir@/tests/valgrind-wrapper/qvalgrind" $f \"\${@}\" ; }"
+	done
+fi
+
+tret=0
+tpassed=0
+tfailed=0
+
+tfail() {
+	echo "${BAD}FAIL:${NORMAL} $*"
+	: $(( ++tfailed ))
+	tret=1
+	return 1
+}
+tpass() {
+	echo "${GOOD}PASS:${NORMAL} $*"
+	: $(( ++tpassed ))
+	return 0
+}
+tend() {
+	local r=$1; shift
+	[[ $r -eq 0 ]] && tpass "$@" || tfail "$@"
+	return $r
+}
+
+die() {
+	tfail "$@"
+	end
+}
+
+skip() {
+	echo "${WARN}SKIPPED:${NORMAL} $*"
+	exit 0
+}
+
+end() {
+	echo "${HILITE}${PWD##*/}:${NORMAL} ${tpassed} passes / ${tfailed} fails"
+	exit ${tret}
+}
+
+mktmpdir() {
+	local d=${1:-${Q_TMPDIR:-${ab}}/q-tmp}
+	rm -rf "$d" && \
+	mkdir -p "$d" && \
+	pushd "$d" >/dev/null \
+		|| fail "could not make tmp dir '$d'"
+}
+_cleantmpdir() {
+	local cmd=$1; shift
+	local d=${1:-${Q_TMPDIR:-${ab}}/q-tmp}
+	popd >/dev/null
+	${cmd} "${d}" || fail "could not clean tmp dir '$d'"
+}
+cleantmpdir() { _cleantmpdir "rm -rf" "$@" ; }
+trimtmpdir() { _cleantmpdir "rmdir" "$@" ; }
+
+treedir() {
+	local d=$1
+	if ! tree "${d}" 2>/dev/null ; then
+		ls -R "${d}"
+	fi
+}
+
+mkportdir() {
+	export PORTDIR=$1
+
+	export PORTAGE_CONFIGROOT=${PWD}
+	mkdir -p etc/portage/
+	cat <<-EOF >etc/portage/repos.conf
+	[DEFAULT]
+	main-repo = utils-test
+	[utils-test]
+	location = ${PORTDIR}
+	EOF
+}

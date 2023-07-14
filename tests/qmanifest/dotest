@@ -1,0 +1,100 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+set -e
+
+export ROOT=${as}/root
+export PORTAGE_CONFIGROOT=${as}/root
+
+mktmpdir
+
+test() {
+	local num=$1 exp=$2 ret=0
+	shift 2
+	eval "$*" > manifest 2>&1 || ret=$?
+	sed -i -e '/^checked [0-9]/s/ in [0-9.]\+s$//' manifest
+	if ! diff -u ${as}/manifest${num}.good manifest; then
+		tfail "output does not match"
+		[[ -e gpgme.log ]] && cat gpgme.log
+	fi
+	if [[ ${exp} -ne ${ret} ]] ; then
+		tfail "exit code (${ret}) does not match expected (${exp}) for test ${num} (args: $*)"
+	fi
+	tend $? "$*"
+}
+
+# verify we see our overlays
+DEBUG=1 q -ev
+test 00 0 "q -o"
+
+# simple run check (should do bad_tree)
+test 01 2 "qmanifest"
+
+# match overlay
+test 02 2 "qmanifest not_a_tree"
+
+# match dir
+test 03 2 "qmanifest notatree"
+
+# dir test
+test 04 1 "qmanifest -d not_a_tree"
+
+# overlay test
+test 05 1 "qmanifest -o notatree"
+
+# generate a valid tree
+rm -Rf testtree
+cp -r "${ROOT}/simpletree" testtree || echo try it anyway
+export HOME=${PWD}  # for gpgme/gnupg home
+mkdir -p "${HOME}"/.gnupg
+# silence gpg warnings
+chmod -R og-rwx "${HOME}"/.gnupg
+
+gpg_import() {
+	local key=$1
+	local pass=$2
+	local args=(
+		--batch
+		--quiet
+		--no-tty
+		--passphrase-fd 0
+		--pinentry-mode loopback
+		--import "${key}"
+	)
+
+	echo "${pass}" | gpg "${args[@]}"
+}
+# import key, if this fails, skip the test, couple of reasons why this
+# could fail:
+# - Ubuntu uses old/ancient gnupg which doesn't grok arguments and key (Travis)
+# - HOME (T) may be too long to hold a socket, especially on Linux this
+#   pathlength is very short, Portage's T may be too long by default
+set +e
+if gpg_import "${as}"/key.gpg qmanifest ; then
+set -e
+
+tend 0 "gpg import key"
+
+# make it a fully valid tree
+rm testtree/my-cat/mypackage/unrecorded-file
+# drop ROOT, we'll work here in T
+unset ROOT PORTAGE_CONFIGROOT
+SIGNAS=0x3D695C8C0F87966B62DC5AFCDCFABA8E07F52261
+KEYPASS=qmanifest
+export GPGME_DEBUG=9:${PWD}/gpgme.log
+rm -f gpgme.log
+test 06 0 "qmanifest -g -s ${SIGNAS} -p testtree <<< ${KEYPASS}"
+
+# validate the just generated tree
+rm -f gpgme.log
+test 07 0 "qmanifest testtree | sed -e '/Manifest timestamp/d' -e 's/made .* UTC by/made by/'"
+
+fi  # gpgimport
+
+# shut down agents and whatnot
+gpgconf --kill all
+
+cleantmpdir
+
+end

@@ -1,0 +1,3 @@
+DEPEND="
+    foo? ( a/b )
+"

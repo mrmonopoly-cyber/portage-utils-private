@@ -1,0 +1,86 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+testit() {
+	if [ -s $1 ] ; then
+		tfail "$1"
+		cat $1
+		rm -f $1
+		return
+	fi
+	rm -f $1
+	tpass "$1"
+}
+
+prune=(
+	'('
+		'('
+		'('
+			-type d -a
+			'('
+				-name tests -o
+				-name autotools -o
+				-name autom4te.cache -o
+				-name .deps
+			')'
+		')'
+		-o
+		'('
+			-type f -a
+			'('
+				-name '*~' -o
+				-name config.h -o
+				-name config.log -o
+				-name config.status
+			')'
+		')'
+		')'
+		-prune
+	')'
+)
+all_files=(
+	"${prune[@]}" -o -type f
+)
+src_files=(
+	"${prune[@]}" -o -type f -name '*.[ch]'
+)
+
+
+
+#
+# check for misc common typos
+#
+find ${ats} "${all_files[@]}" -print0 | xargs -0 \
+	grep -n -I \
+		-e '\<compatability\>' \
+		-e '\<compatable\>' \
+		-e '\<fordeground\>' \
+		-e '\<depency\>' \
+		-e '\<defalt\>' \
+		-e '\<remaing\>' \
+		-e '\<queuing\>' \
+		-e '\<detatch\>' \
+		-e '\<sempahore\>' \
+		-e '\<reprenstative\>' \
+		-e '\<overriden\>' \
+		-e '\<readed\>' \
+		-e '\<formated\>' \
+		-e '\<algorithic\>' \
+		-e '\<deamon\>' \
+		-e '\<derefernce\>' \
+		-e '\<lenght\>' \
+		| sed -e "s:^\.\./\.\./::g" > src.typos
+testit src.typos
+
+
+
+#
+# don't allow obsolete functions or headers (portability)
+#
+funcs='\<(bcmp|bcopy|bzero|getwd|index|mktemp|rindex|utime)\>[[:space:]]*\('
+hdrs='\<(malloc|memory|sys/(errno|fcntl|signal|stropts|termios|unistd))\.h\>'
+find ${ats} "${src_files[@]}" -print0 | xargs -0 \
+	grep -n -E -e "(${funcs}|${hdrs})" \
+	| sed -e "s:^\.\./\.\./::g" > src.obsolete.funcs.hdrs
+testit src.obsolete.funcs.hdrs

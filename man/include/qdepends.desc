@@ -1,0 +1,32 @@
+The
+.I qdepends
+applet has two different modes, forward and reverse dependency querying.
+Default operation is forward mode, answering the queries "what does
+package X depend on", while reverse mode answers "what packages depend
+on X".  Both modes can be further specified into build (DEPEND), run
+(RDEPEND), post (PDEPEND) and EAPI7's BDEPEND dependencies.
+.P
+By default, \fIqdepends\fR returns the unique set of atoms that match
+all dependency variables.  To split this out per variable, use \fB-v\fR
+option.
+.P
+Currently,
+.I qdepends
+defaults to query installed packages.  To query packages from ebuild
+trees, use the \fB-t\fR option.
+.P
+If there is no answer to your query (i.e. you've asked for a package
+that is not installed, or a version that does not match), then you will
+get empty output.
+.P
+After version \fB0.74\fR of portage-utils, \fIqdepends\fR was changed
+considerably to be more consistent and more advanced.  Most notably,
+this has changed default output for reverse mode (\fB-Q\fR).  Instead of
+just displaying the package name, like for forward mode, all
+dependencies for the package are shown.  When colours are enabled, the
+matched atom is highlighted in the list.  In addition to just querying
+DEPEND, the default mode changed to query all DEPEND-variables, and
+return the unique atoms found in them.  Automatic regular expression
+match support was removed.  The \fB-N\fR option was removed, as the same
+effect can be achieved via the new \fB-F\fR option or \fB-q\fR option.
+The \fB-f\fR option was renamed to \fB-S\fR.

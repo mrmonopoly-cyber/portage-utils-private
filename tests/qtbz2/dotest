@@ -1,0 +1,87 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+set -e
+
+mktmpdir
+
+files="a b c d e f"
+for l in ${files} ; do
+	echo $l > $l
+done
+
+qxpak -c xpak ${files}
+tar jcf tarbz2 ${files}
+
+FDIR=$PWD
+raw_tar_check()
+{
+	mkdir new
+	cd new
+	# ignore "trailing garbage" warning
+	tar jxf ../$1 2>&1 | sed -e '/trailing garbage/d' -e '/^$/d'
+	for l in ${files} ; do
+		diff -u "$FDIR"/$l $l
+		rm $l
+	done
+	cd ..
+	rmdir new
+	rm $1
+}
+
+################
+qtbz2 -j tarbz2 xpak tbz2
+raw_tar_check tbz2
+tpass "check basic creation"
+
+################
+mkdir new
+cd new
+qtbz2 -j tarbz2 xpak tbz2 -d ..
+raw_tar_check tbz2
+cd ..
+rmdir new
+tpass "check basic creation with dir change"
+
+################
+qtbz2 -j tarbz2 xpak
+raw_tar_check tarbz2.tbz2
+tpass "check basic creation (with guess)"
+
+################
+mv tarbz2 x.tar.bz2
+mv xpak x.xpak
+qtbz2 -j x.tar.bz2 x.xpak
+raw_tar_check x.tbz2
+tpass "check basic creation (with better guess)"
+
+################
+qtbz2 -j x.tar.bz2
+raw_tar_check x.tbz2
+tpass "check basic creation (with best guess)"
+
+################
+qtbz2 -j x.tar.bz2
+mkdir new
+cd new
+qtbz2 -s ../x.tbz2
+cmp {.,..}/x.tar.bz2
+cmp {.,..}/x.xpak
+rm x.{xpak,tar.bz2}
+cd ..
+rmdir new
+tpass "check basic splitting"
+
+################
+mkdir new
+qtbz2 -s x.tbz2 -d new
+cmp {.,new}/x.tar.bz2
+cmp {.,new}/x.xpak
+rm new/x.{xpak,tar.bz2}
+rmdir new
+tpass "check basic splitting to diff dir"
+
+cleantmpdir
+
+end

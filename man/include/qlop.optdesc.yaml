@@ -1,0 +1,70 @@
+date: |
+    Limit the selection of packages to the date given, or to the range
+    of dates if this argument is given twice.  The \fB--date\fR option
+    can take a few forms.
+    .RS
+    .IP "NUMBER <day|week|month|year>[s] [ago]"
+    Relative time, specifying \fINUMBER\fR \fIdays\fR, \fIweeks\fR,
+    \fImonths\fR or \fIyears\fR, for example \fI3 days ago\fR.
+    .IP today
+    Alias for \fI0 days ago\fR.
+    .IP yesterday
+    Alias for \fI1 day ago\fR.
+    .IP YYYY-MM-DD
+    Big-endian date, with components separated by hyphens, starting with
+    year, followed by month and day of month.
+    .IP YYYY-MM-DDThh:mm:ss
+    As before, but hours, minutes and seconds added.  This is the same
+    format qlop prints for timestamps.
+    .IP "SSSSSSSSS or @SSSSSSSSS"
+    Seconds since 1970-01-01 00:00:00 +0000 (UTC), the UNIX epoch.
+    .IP FORMAT|DATE
+    Use \fIFORMAT\fR as input for \fBstrptime\fR(3) to parse \fIDATE\fR.
+    .RE
+lastmerge: |
+    Limit selection to last Portage emerge action.  This option is a
+    dynamic version of \fB-d\fR, and hence both cannot be used together.
+time: |
+    Show the time it took to merge, unmerge or sync.
+average: |
+    Calculate average merge, unmerge or sync time.  This is the average
+    time for all occurrences found respecting any date limits.
+summary: |
+    Show a grand total for averages.  This option implies \fB-a\fR.
+    Useful to compute time it takes to recompile all packages or a set
+    of packages (e.g\. world).
+human: |
+    Print elapssed time in human readable format.  This form uses
+    minutes, hours and days instead of just seconds.
+current: |
+    Show current emerging packages.  This relies on
+    .I FEATURES=sandbox
+    in order to detect running merges.
+verbose: |
+    Print package versions and revisions (PF) instead of package (PN).
+quiet:
+    Omit printing of timestamps and operation symbols, can be used to
+    generate a flat list of atoms, e.g.\ \fB-qml\fR to print the package
+    names merged in the last emerge operation.
+running: |
+    Print operations currently in progress.  An ETA is calculated based
+    on the average for the operation.  If the elapsed exceeds the
+    average, the ETA is calculated against the longest time observed for
+    the operation.  The \fB-v\fR flag will display which mode is
+    currently used.  If the elapsed time also exceeds the longest time
+    observed, or no previous occurrences for the operation exist,
+    \fIunknown\fR is printed.  When combined with \fB-t\fR the
+    elapsed time is also displayed.
+emerge: |
+    Immitate \fBemerge\fR(1) output, as if \fBemerge -pv\fR had been
+    run.  This produces a list of packages that were installed (N),
+    upgraded (U), downgraded (UD), re-installed (R) or unmerged (D).
+    The list always includes the version numbers, and for up/downgrades
+    the previous version is listed between square brackets after the
+    package.  When \fB-v\fR is used, the \fBemerge\fR invocations are
+    printed as well, to really show what happened.  When concurrent
+    merges are present in the displayed timeframe, the output will be
+    hard to read.  This is a limitation of the \fIemerge.log\fR format.
+    It is possible to combine this flag with the \fB-d\fR flag, in which
+    case the default behaviour of displaying the last merge (\fB-l\fR)
+    is disabled.

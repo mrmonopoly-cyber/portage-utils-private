@@ -1,0 +1,11 @@
+verbose: |
+    Print package versions and symlink targets for matches, warn about
+    problems with resolving symlinks or positioning packages under an
+    alternative root.
+quiet: |
+    Don't print matching file for matches, just the package.  Don't
+    report about orphan files.
+dir: |
+    Only consider basename of argument and also match directories, this
+    option makes qlist ignore any path component given in the arguments
+    if present.

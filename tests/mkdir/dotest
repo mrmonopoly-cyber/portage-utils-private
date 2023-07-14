@@ -1,0 +1,72 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+set -e
+
+_m=${ab}/m
+mktmpdir
+
+# check mkdir
+m="${_m} m"
+for d in a a/ a/b a/b/ a/b/c a/b/c/ ; do
+	_d=${d}
+	$m ${d}
+
+	rmdir ${d}
+	d=${d%/}
+	while [[ ${d} == */* ]] ; do
+		d=${d%/*}
+		rmdir ${d}
+	done
+
+	tpass "empty ${_d}"
+done
+
+for d in a a/ a/b a/b/ a/b/c a/b/c/ ; do
+	_d=${d}
+	mkdir -p ${d}
+	$m ${d}
+
+	rmdir ${d}
+	d=${d%/}
+	while [[ ${d} == */* ]] ; do
+		d=${d%/*}
+		rmdir ${d}
+	done
+
+	tpass "exist ${_d}"
+done
+
+# check rm_rf
+m="${_m} rm"
+
+mkdir -p a/b/c/d
+$m a/b/
+tpass "rm a/b/"
+
+mkdir -p a/b/c/d
+$m a/b
+tpass "rm a/b"
+
+mkdir -p a/b/c/d
+cd a
+$m . || : # ignore EBUSY failure
+cd ..
+rmdir a
+tpass "rm ."
+
+mkdir -p a/b/c/d
+ln -s . a/b/d
+ln -s c a/b/cc
+ln -s .. a/b/dd
+ln -s x a/b/x
+touch a/b/f
+ln -s ../f a/b/c/f
+$m a
+[ ! -e a ]
+tpass "rm a tree"
+
+cleantmpdir
+
+end

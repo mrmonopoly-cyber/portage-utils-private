@@ -1,0 +1,33 @@
+#!/bin/bash
+
+. ../init.sh || exit 1
+
+rm -f q
+
+applets=$(q -h | \
+	sed -n '/^Currently defined applets:/,/^Options/p' | \
+	grep ' : ' | \
+	awk '{print $1}'
+)
+rm -f ${applets}
+
+if ! cp `which q` . ; then
+	skip "could not copy q"
+fi
+./q -i || die "./q -i"
+
+for app in ${applets} ; do
+	if [ ! -e $app ] ; then
+		tfail "$app does not exist"
+	elif [ "$app" != "q" ] ; then
+		t=$(readlink $app)
+		if [ "$t" != "q" ] ; then
+			tfail "$app target is not 'q', it is '$t'"
+		else
+			tpass "${app}"
+		fi
+	fi
+done
+rm ${applets}
+
+end

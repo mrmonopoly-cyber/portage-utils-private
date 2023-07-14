@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+. ../init.sh || exit 1
+
+set -e
+
+mktmpdir
+
+mkportdir "${as}/portdir"
+
+# check inference of PORTDIR with repos.conf
+q -ev PORTDIR
+q -ov
+
+d=${PORTDIR}/profiles
+entries() {
+	sed -e 's:#.*::' -e '/^$/d' "$1"
+}
+
+# check use.desc
+f="$d/use.desc"
+all=$(entries "$f" | awk '{print $1}')
+for x in ${all} ; do
+	quse -eD $x > x
+	sed -n -e "/^$x - /{s|^[^ ]* - |global[$x] |;p}" "$f" > good
+	cat good >> all.good
+	diff -u good x
+done
+quse -eD ${all} > x
+diff -u all.good x
+rm x good all.good
+tpass "use.desc"
+
+# check use.local.desc
+f="$d/use.local.desc"
+all=$(entries "$f" | awk '{print $1}' | cut -f2 -d:)
+for x in ${all} ; do
+	quse -eD $x > x
+	sed -n -e "/^[^:]*:$x - /{s|^\([^:]*\):[^ ]* - |\1[$x] |;p}" "$f" > good
+	cat good >> all.good
+	diff -u good x
+done
+quse -eD ${all} > x
+diff -u all.good x
+rm x good all.good
+tpass "use.local.desc"
+
+# check desc subdir
+f="$d/desc/elibc.desc"
+all=$(entries "$f" | awk '{print $1}')
+for x in ${all} ; do
+	quse -eD $x > x
+	dispf=${f##*/}
+	dispf=${dispf%.desc}
+	dispf=${dispf^^}
+	sed -n -e "/^$x - /{s|^[^ ]* - |${dispf}[$x] |;p}" "$f" > good
+	cat good >> all.good
+	diff -u good x
+done
+quse -eD ${all} > x
+diff -u all.good x
+rm x good all.good
+tpass "desc/elibc.desc"
+
+# check cross file matches
+# sort because quse order depends on the readdir order
+# which depends on the fs itself.  quse doesnt do sorting
+# because in general, who cares.  faster this way.
+quse -D abc | LC_ALL=C sort > x
+diff -u ${as}/list01.good x
+rm x
+tpass "multi file match"
+
+cleantmpdir
+
