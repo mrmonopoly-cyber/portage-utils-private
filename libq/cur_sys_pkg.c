@@ -53,7 +53,7 @@ static size_t gen_hash_from_string(char *string)
   char *hash_buffer=NULL;
 
   hash_buffer=calloc(hash_buffer_size+1,sizeof(*hash_buffer));
-  hash_hex(hash_buffer,string,hash_buffer_size);
+  hash_hex(hash_buffer,(unsigned char *)string,hash_buffer_size);
   result = strtol(hash_buffer,NULL,16);
 
   return result;
