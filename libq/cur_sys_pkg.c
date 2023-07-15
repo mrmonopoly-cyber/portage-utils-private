@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdio.h>
 
+
+#include "hash.h"
 #include "cur_sys_pkg.h"
 
 #define HASH_SIZE 32
@@ -49,8 +51,11 @@ static size_t gen_hash_from_string(char *string)
   size_t root_sqrt_len = roof_sqrt(string_len);
   size_t hash_buffer_size=(1<<root_sqrt_len);
   char *hash_buffer=NULL;
+
   hash_buffer=calloc(hash_buffer_size+1,sizeof(*hash_buffer));
+  hash_hex(hash_buffer,string,hash_buffer_size);
   result = strtol(hash_buffer,NULL,16);
+
   return result;
 }
 
@@ -58,8 +63,13 @@ static int is_dir(char *path)
 {
   DIR *dir=opendir(path);
 
-  if(dir!=NULL) return 1;
+  if(dir!=NULL)
+  {
+    close(dir);
+    return 1;
+  }
 
+  close(dir);
   return 0;
 }
 
@@ -95,6 +105,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
       {
         *line_buffer_end='\0';
       }
+      --line_buffer_end;
       line_buffer_start_path=line_buffer+4;
       
       //read/save hash
@@ -153,6 +164,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
     }
   }
   
+  close(dir);
   return 0;
 }
 
