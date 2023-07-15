@@ -36,7 +36,7 @@ static size_t roof_sqrt(size_t num)
 
   while (num) {
     ++result;
-    (num>>1);
+    num=(num>>1);
   }
 
   return result;
@@ -107,13 +107,13 @@ static void read_file_add_data(cur_pkg_tree_node **root)
       ++hash_buffer;
       
       //create hash key from complete path of file
-      key=gen_hash_from_string(line_buffer);
+      key=gen_hash_from_string(line_buffer_start_path);
 
       //add element to the tree
       add_node(root,hash_buffer,key);
     }
   }
-  close(CONTENTS);
+  fclose(CONTENTS);
   free(line_buffer);
   line_buffer=NULL;
   line_buffer_end=NULL;
@@ -124,7 +124,7 @@ static int find_in_tree(cur_pkg_tree_node *root,size_t key,char *hash)
 {
   if(root != NULL)
   {
-    if(key==root->key) !strcmp(hash,root->hash_buffer);
+    if(key==root->key) return !strcmp(hash,root->hash_buffer);
     if(key>root->key) return find_in_tree(root->greater,key,hash);
     if(key<root->key) return find_in_tree(root->minor,key,hash);
   }
