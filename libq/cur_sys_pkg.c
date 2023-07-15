@@ -133,7 +133,7 @@ static int find_in_tree(cur_pkg_tree_node *root,size_t key,char *hash)
 
 
 //publid
-int create_cur_pkg_tree(cont char *path, cur_pkg_tree_node **root)
+int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
 {
   (void)chdir(path);
 
