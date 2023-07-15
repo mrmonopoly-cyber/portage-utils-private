@@ -14,6 +14,16 @@
 #define HASH_SIZE 32
 
 //private
+void in_order_visit(cur_pkg_tree_node *root)
+{
+  if(root!=NULL)
+  {
+    in_order_visit(root->minor);
+    printf("[%ld,%s]\n",root->key,root->hash_buffer);
+    in_order_visit(root->greater);
+  }
+}
+
 
 static void add_node(cur_pkg_tree_node **root,char *hash,size_t key)
 {
@@ -32,32 +42,18 @@ static void add_node(cur_pkg_tree_node **root,char *hash,size_t key)
   return;
 }
 
-static size_t roof_sqrt(size_t num)
+size_t hash_from_string(unsigned char *str)
 {
-  size_t result=0;
-
-  while (num) {
-    ++result;
-    num=(num>>1);
+  size_t hash = 5381;
+  int c;
+  
+  while ((c = *str++))
+  {
+      hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
   }
-
-  return result;
+  return hash;
 }
 
-static size_t gen_hash_from_string(char *string)
-{
-  size_t result=0;
-  size_t string_len = strlen(string);
-  size_t root_sqrt_len = roof_sqrt(string_len);
-  size_t hash_buffer_size=(1<<root_sqrt_len);
-  char *hash_buffer=NULL;
-
-  hash_buffer=calloc(hash_buffer_size+1,sizeof(*hash_buffer));
-  hash_hex(hash_buffer,(unsigned char *)string,hash_buffer_size);
-  result = strtol(hash_buffer,NULL,16);
-
-  return result;
-}
 
 static int is_dir(char *path)
 {
@@ -80,51 +76,61 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
   char *hash_buffer=NULL;
+  char *hash_buffer_cursor=NULL;
+  char *hash_to_node = NULL;
   size_t line_buffer_size=0;
   size_t key=0;
   
   hash_buffer=calloc(HASH_SIZE+1,sizeof(*hash_buffer));
-  hash_buffer+=HASH_SIZE;
-  
+  hash_buffer[HASH_SIZE]='\0';
+  hash_buffer_cursor=hash_buffer+(HASH_SIZE -1);
   while( (byte_read=getline(&line_buffer,&line_buffer_size,CONTENTS)) != -1 )
   {
     if(line_buffer[0]=='o' && line_buffer[1]=='b' && line_buffer[2]=='j')
     {
-      line_buffer_end=line_buffer + byte_read;
-      
-      //go to the last character of the string
-      while(*line_buffer_end==' ' || *line_buffer_end=='\n')
-      {
-        *line_buffer_end='\0';
-        --line_buffer_end;
-      }
-      
-      //skip and remove timestamp
-      for(;*line_buffer_end!=' ';--line_buffer_end)
-      {
-        *line_buffer_end='\0';
-      }
-      --line_buffer_end;
-      line_buffer_start_path=line_buffer+4;
-      
-      //read/save hash
-      while(*line_buffer_end != ' ')
-      {
-        *hash_buffer=*line_buffer_end;
-        --hash_buffer;
-        --line_buffer_end;
-      }
-      ++hash_buffer;
-      
-      //create hash key from complete path of file
-      key=gen_hash_from_string(line_buffer_start_path);
+    	line_buffer_end=line_buffer+(byte_read-1);
+	while( !(60 < *line_buffer_end) && !(71> *line_buffer_end) )
+	{
+		*line_buffer_end='\0';
+		--line_buffer_end;
+	}
+	--line_buffer_end;
 
-      //add element to the tree
-      add_node(root,hash_buffer,key);
+	//timestamp
+	while(*line_buffer_end != ' ')
+	{
+		*line_buffer_end='\0';
+		--line_buffer_end;
+	}
+	--line_buffer_end;
+
+	//hash
+	while(*line_buffer_end != ' ')
+	{
+		*hash_buffer_cursor=*line_buffer_end;
+		--hash_buffer_cursor;
+		--line_buffer_end;
+	}
+	hash_to_node=strdup(hash_buffer);
+	
+	//path
+	*line_buffer_end='\0';
+	line_buffer_start_path=line_buffer+4;
+	key=hash_from_string((unsigned char *)line_buffer_start_path);
+	*line_buffer_end=' ';
+
+	//tree
+	add_node(root,hash_to_node,key);
     }
+    hash_buffer_cursor=hash_buffer+(HASH_SIZE -1);
+    line_buffer_start_path=NULL;
+    line_buffer_end=NULL;
   }
+
   fclose(CONTENTS);
   free(line_buffer);
+  free(hash_buffer);
+  hash_buffer=NULL;
   line_buffer=NULL;
   line_buffer_end=NULL;
   line_buffer_start_path=NULL;
@@ -155,11 +161,10 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
   while((dirent_struct=readdir(dir)) != NULL)
   {
     char *name_file=dirent_struct->d_name;
-    if(is_dir(name_file)){
+    if(is_dir(name_file) && name_file[0] != '.'){
       create_cur_pkg_tree(name_file,root);
     }else if(!strcmp(name_file,"CONTENTS")){
       read_file_add_data(root);
-      break;
     }
   }
   
@@ -169,7 +174,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
 
 int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash)
 {
-  size_t key= gen_hash_from_string(file_path_complete);
+  size_t key= hash_from_string((unsigned char *)file_path_complete);
   return find_in_tree(root,key,hash);
 }
 
