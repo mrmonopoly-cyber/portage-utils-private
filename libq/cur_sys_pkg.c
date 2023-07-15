@@ -65,11 +65,10 @@ static int is_dir(char *path)
 
   if(dir!=NULL)
   {
-    close(dir);
+    closedir(dir);
     return 1;
   }
 
-  close(dir);
   return 0;
 }
 
@@ -164,7 +163,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
     }
   }
   
-  close(dir);
+  closedir(dir);
   return 0;
 }
 
