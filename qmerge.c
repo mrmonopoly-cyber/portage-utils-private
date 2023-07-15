@@ -100,9 +100,9 @@ struct llist_char_t {
 
 typedef struct llist_char_t llist_char;
 
-static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *);
-static void pkg_merge(int, const depend_atom *, const tree_match_ctx *);
-static int pkg_unmerge(tree_pkg_ctx *, depend_atom *, set *, int, char **, int, char **);
+static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
+static void pkg_merge(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
+static int pkg_unmerge(tree_pkg_ctx *, depend_atom *, set *, int, char **, int, char **,cur_pkg_tree_node *);
 
 static bool
 qmerge_prompt(const char *p)
@@ -120,7 +120,7 @@ qmerge_prompt(const char *p)
 }
 
 static void
-fetch(const char *destdir, const char *src)
+fetch(const char *destdir, const char *src,cur_pkg_tree_node *cur_pkg_tree)
 {
 	if (!binhost[0])
 		return;
@@ -190,7 +190,7 @@ qmerge_initialize(void)
 
 	if (force_download == 1 /* -f: fetch */) {
 		unlink(Packages);
-		fetch(buf, Packages);
+		fetch(buf, Packages,cur_pkg_tree);
 	}
 
 	free(buf);
@@ -969,7 +969,7 @@ pkg_extract_xpak_cb(
 
 /* oh shit getting into pkg mgt here. FIXME: write a real dep resolver. */
 static void
-pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
+pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pkg_tree_node *cur_pkg_tree)
 {
 	set            *objs;
 	tree_ctx       *vdb;
@@ -1071,7 +1071,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
 						}
 
 						if (bpkg->pkg->cat_ctx->ctx->cachetype != CACHE_VDB)
-							pkg_fetch(level + 1, subatom, bpkg);
+							pkg_fetch(level + 1, subatom, bpkg,cur_pkg_tree);
 
 						tree_match_close(bpkg);
 						atom_implode(subatom);
@@ -1407,7 +1407,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
 			/* We need to really set this unmerge pending after we
 			 * look at contents of the new pkg */
 			pkg_unmerge(previnst->pkg, mpkg->atom, objs,
-					cp_argc, cp_argv, cpm_argc, cpm_argv);
+					cp_argc, cp_argv, cpm_argc, cpm_argv,cur_pkg_tree);
 			break;
 		default:
 			warn("no idea how we reached here.");
@@ -1499,7 +1499,8 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
 
 static int
 pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
-		int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv)
+		int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv,
+    cur_pkg_tree_node *cur_pkg_tree)
 {
 	tree_cat_ctx *cat_ctx = pkg_ctx->cat_ctx;
 	char *phases;
@@ -1764,7 +1765,7 @@ pkg_verify_checksums(
 }
 
 static void
-pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
+pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pkg_tree_node *cur_pkg_tree)
 {
 	int  verifyret;
 	char buf[_Q_PATH_MAX];
@@ -1773,7 +1774,7 @@ pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
 	if (pretend) {
 		if (!install)
 			install++;
-		pkg_merge(level, qatom, mpkg);
+		pkg_merge(level, qatom, mpkg, cur_pkg_tree);
 		return;
 	}
 
@@ -1850,7 +1851,7 @@ qmerge_unmerge_cb(tree_pkg_ctx *pkg_ctx, void *priv)
 	for (p = todo; *p != NULL; p++) {
 		if (qlist_match(pkg_ctx, *p, NULL, true, false))
 			pkg_unmerge(pkg_ctx, NULL, NULL,
-					cp_argc, cp_argv, cpm_argc, cpm_argv);
+					cp_argc, cp_argv, cpm_argc, cpm_argv, NULL);
 	}
 
 	free(todo);
@@ -1987,7 +1988,7 @@ qmerge_run(set *todo)
 				atom = atom_explode(todo_strs[i]);
 				bpkg = best_version(atom, BV_BINPKG);    
 				if (bpkg != NULL) {
-					pkg_fetch(0, atom, bpkg);
+					pkg_fetch(0, atom, bpkg,cur_pkg_tree);
 					tree_match_close(bpkg);
 					ret = EXIT_SUCCESS;
 				} else {
