@@ -120,7 +120,7 @@ qmerge_prompt(const char *p)
 }
 
 static void
-fetch(const char *destdir, const char *src,cur_pkg_tree_node *cur_pkg_tree)
+fetch(const char *destdir, const char *src)
 {
 	if (!binhost[0])
 		return;
@@ -190,7 +190,7 @@ qmerge_initialize(void)
 
 	if (force_download == 1 /* -f: fetch */) {
 		unlink(Packages);
-		fetch(buf, Packages,cur_pkg_tree);
+		fetch(buf, Packages);
 	}
 
 	free(buf);
@@ -1585,7 +1585,8 @@ pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
 							e->name + 1, HASH_MD5);
 					protected = 0;
 					if (hash != NULL)  /* if file was not removed */
-						protected = strcmp(e->digest, (const char *)hash);
+               protected = is_in_tree(cur_pkg_tree,e->name,hash);
+						// protected = strcmp(e->digest, (const char *)hash);
 				}
 				break;
 
@@ -1819,7 +1820,7 @@ pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 				mpkg->path);
 		return;
 	} else if (verifyret == 0) {
-		pkg_merge(0, qatom, mpkg);
+		pkg_merge(0, qatom, mpkg,cur_pkg_tree);
 		return;
 	}
 }
