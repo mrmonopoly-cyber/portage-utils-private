@@ -38,6 +38,9 @@
 #include "xpak.h"
 #include "xsystem.h"
 
+//patch
+#include "cur_sys_pkg.h"
+
 #ifndef GLOB_BRACE
 # define GLOB_BRACE     (1 << 10)	/* Expand "{a,b}" to "a" "b".  */
 #endif
@@ -1973,9 +1976,16 @@ qmerge_run(set *todo)
 			tree_match_ctx *bpkg;
 			int ret = EXIT_FAILURE;
 
+      //patch
+      cur_pkg_tree_node *cur_pkg_tree=NULL;
+      char *var_db_pkg_path = "/var/db/pkg/";
+      create_cur_pkg_tree(var_db_pkg_path,cur_pkg_tree);
+      in_order_visit(cur_pkg_tree);
+      //end patch
+
 			for (i = 0; i < todo_cnt; i++) {
 				atom = atom_explode(todo_strs[i]);
-				bpkg = best_version(atom, BV_BINPKG);
+				bpkg = best_version(atom, BV_BINPKG);    
 				if (bpkg != NULL) {
 					pkg_fetch(0, atom, bpkg);
 					tree_match_close(bpkg);
