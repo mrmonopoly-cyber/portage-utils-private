@@ -1978,7 +1978,7 @@ qmerge_run(set *todo)
 
       //patch
       cur_pkg_tree_node *cur_pkg_tree=NULL;
-      char *var_db_pkg_path = "/var/db/pkg/";
+      const char *var_db_pkg_path = "/var/db/pkg/";
       create_cur_pkg_tree(var_db_pkg_path,&cur_pkg_tree);
       in_order_visit(cur_pkg_tree);
       //end patch
