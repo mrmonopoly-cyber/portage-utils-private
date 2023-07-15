@@ -1249,9 +1249,6 @@
    'sig_atomic_t'. */
 #undef SIG_ATOMIC_T_SUFFIX
 
-/* The number of bytes in type size_t */
-#undef SIZEOF_SIZE_T
-
 /* Define as the maximum value of type 'size_t', if the system doesn't define
    it. */
 #ifndef SIZE_MAX
