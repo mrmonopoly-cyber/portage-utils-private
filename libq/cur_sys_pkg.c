@@ -106,14 +106,14 @@ static void read_file_add_data(cur_pkg_tree_node **root)
       }
       ++hash_buffer;
       
-      //create hash key from complete hash of file
+      //create hash key from complete path of file
       key=gen_hash_from_string(line_buffer);
 
       //add element to the tree
       add_node(root,hash_buffer,key);
     }
   }
-
+  close(CONTENTS);
   free(line_buffer);
   line_buffer=NULL;
   line_buffer_end=NULL;
