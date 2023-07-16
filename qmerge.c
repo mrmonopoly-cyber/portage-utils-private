@@ -1585,8 +1585,7 @@ pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
 							e->name + 1, HASH_MD5);
 					protected = 0;
 					if (hash != NULL)  /* if file was not removed */
-              protected = !is_in_tree(cur_pkg_tree,e->name,hash);
-						  //protected = strcmp(e->digest, (const char *)hash);
+						  protected = strcmp(e->digest, (const char *)hash);
 				}
 				break;
 
@@ -1616,8 +1615,7 @@ pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
 		snprintf(zing, sizeof(zing), "%s%s%s",
 				protected ? YELLOW : GREEN,
 				protected ? "***" : "<<<" , NORM);
-
-		if (protected) {
+		if (protected && e->type == CONTENTS_OBJ && !is_in_tree(cur_pkg_tree,e->name,hash_file_at(portroot_fd, e->name + 1, HASH_MD5) ) ) {
 			qprintf("%s %s\n", zing, e->name);
 			continue;
 		}
