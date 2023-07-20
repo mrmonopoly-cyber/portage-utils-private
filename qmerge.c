@@ -1615,7 +1615,7 @@ pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
 		snprintf(zing, sizeof(zing), "%s%s%s",
 				protected ? YELLOW : GREEN,
 				protected ? "***" : "<<<" , NORM);
-		if (protected && e->type == CONTENTS_OBJ && !is_in_tree(cur_pkg_tree,e->name,hash_file_at(portroot_fd, e->name + 1, HASH_MD5) ) ) {
+		if (protected && e->type == CONTENTS_OBJ && !is_in_tree(cur_pkg_tree,e->name,hash_file_at(portroot_fd, e->name + 1, HASH_MD5),strlen(e->name) ) ) {
 			qprintf("%s %s\n", zing, e->name);
 			continue;
 		}

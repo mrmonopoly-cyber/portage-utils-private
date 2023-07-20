@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <openssl/sha.h>
 #include <assert.h>
 #include <sys/stat.h> 
