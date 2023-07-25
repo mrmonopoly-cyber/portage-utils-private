@@ -1589,7 +1589,7 @@ for (; (buf = strtok_r(buf, "\n", &savep)) != NULL; buf = NULL) {
             protected = strcmp(e->digest, (const char *)hash);
         if(protected)
         {
-            protected = !is_in_tree(cur_pkg_tree,e->name,hash,strlen(e->name));
+            protected = !is_in_tree(cur_pkg_tree,e->name,hash);
 
           }
 				}

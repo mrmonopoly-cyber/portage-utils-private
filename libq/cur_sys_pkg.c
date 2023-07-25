@@ -193,12 +193,12 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
   return 0;
 }
 
-int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash,size_t len)
+int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash)
 {
   size_t key;
   char * hash_file=NULL;
   int res=0;
-
+  size_t len = strlen(file_path_complete);
   hash_file = hash_from_file(file_path_complete);
   res = find_in_tree(root,key,hash,file_path_complete);
 
@@ -213,7 +213,7 @@ int is_default(cur_pkg_tree_node *root,char *file_path_complete)
   size_t key;
   char * hash_file=NULL;
   int res=0;
-
+  size_t len = strlen(file_path_complete);
   hash_file = hash_from_file(file_path_complete);
   key= hash_from_string(file_path_complete,len);
 
