@@ -766,7 +766,8 @@ pkg_run_func_at(
 static int
 merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
               FILE *contents, size_t eprefix_len, set **objs, char **cpathp,
-              int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv)
+              int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv, 
+              cur_pkg_tree_node *cur_pkg_tree)
 {
 	int i, ret, subfd_src, subfd_dst;
 	DIR *dir;
@@ -838,7 +839,7 @@ merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
 			/* Copy all of these contents */
 			merge_tree_at(subfd_src, name,
 					subfd_dst, name, contents, eprefix_len,
-					objs, cpathp, cp_argc, cp_argv, cpm_argc, cpm_argv);
+					objs, cpathp, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree);
 			cpath = *cpathp;
 			mnlen = 0;
 
@@ -857,11 +858,12 @@ merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
 			if (!pretend)
 				fprintf(contents, "obj %s %s %zu""\n",
 					cpath, hash ? hash : "xxx", (size_t)st.st_mtime);
-
+      // printf("cpath+eprefix_len %s\thash %s\n",cpath + eprefix_len,hash);
 			/* Check CONFIG_PROTECT */
 			if (config_protected(cpath + eprefix_len,
 						cp_argc, cp_argv, cpm_argc, cpm_argv) &&
-					fstatat(subfd_dst, name, &ignore, AT_SYMLINK_NOFOLLOW) == 0)
+					fstatat(subfd_dst, name, &ignore, AT_SYMLINK_NOFOLLOW) == 0 && 
+          !is_in_tree(cur_pkg_tree,cpath + eprefix_len, hash,strlen(cpath + eprefix_len)))
 			{
 				/* ._cfg####_ */
 				char *num;
@@ -873,7 +875,7 @@ merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
 					num[4] = '_';
 					if (fstatat(subfd_dst, dname, &ignore, AT_SYMLINK_NOFOLLOW))
 						break;
-				}
+			  	}
 				qprintf("%s>>>%s %s (%s)\n", GREEN, NORM, cpath, dname);
 			} else {
 				dname = name;
@@ -1388,7 +1390,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 
 		ret = merge_tree_at(AT_FDCWD, "image",
 				AT_FDCWD, portroot, contents, eprefix_len,
-				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv);
+				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree);
 
 		free(cpath);
 
@@ -1436,156 +1438,160 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 	if (objs != NULL)
 		free_set(objs);
 	free(D);
-	free(T);
+free(T);
 
-	/* Update the magic counter */
-	/* FIXME: check Portage's get_counter_tick_core */
-	if ((fp = fopen("vdb/COUNTER", "w")) != NULL) {
-		fputs("0", fp);
-		fclose(fp);
-	}
+/* Update the magic counter */
+/* FIXME: check Portage's get_counter_tick_core */
+if ((fp = fopen("vdb/COUNTER", "w")) != NULL) {
+  fputs("0", fp);
+  fclose(fp);
+}
 
-	if (!pretend) {
-		/* move the local vdb copy to the final place */
-		snprintf(buf, sizeof(buf), "%s%s/%s/",
-				portroot, portvdb, mpkg->atom->CATEGORY);
-		mkdir_p(buf, 0755);
-		strcat(buf, mpkg->atom->PF);
-		rm_rf(buf);  /* get rid of existing dir, empty dir is fine */
-		if (rename("vdb", buf) != 0) {
-			struct stat     vst;
-			int             src_fd;
-			int             dst_fd;
-			int             cnt;
-			int             vi;
-			struct dirent **files;
+if (!pretend) {
+  /* move the local vdb copy to the final place */
+  snprintf(buf, sizeof(buf), "%s%s/%s/",
+      portroot, portvdb, mpkg->atom->CATEGORY);
+  mkdir_p(buf, 0755);
+  strcat(buf, mpkg->atom->PF);
+  rm_rf(buf);  /* get rid of existing dir, empty dir is fine */
+  if (rename("vdb", buf) != 0) {
+    struct stat     vst;
+    int             src_fd;
+    int             dst_fd;
+    int             cnt;
+    int             vi;
+    struct dirent **files;
 
-			/* e.g. in case of cross-device rename, try copy+delete */
-			if ((src_fd = open("vdb", O_RDONLY|O_CLOEXEC|O_PATH)) < 0 ||
-				fstat(src_fd, &vst) != 0 ||
-				mkdir_p(buf, vst.st_mode) != 0 ||
-				(dst_fd = open(buf, O_RDONLY|O_CLOEXEC|O_PATH)) < 0 ||
-				(cnt = scandirat(src_fd, ".",
-								 &files, filter_self_parent, NULL)) < 0)
-			{
-				warn("cannot stat 'vdb' or create '%s', huh?", buf);
-			} else {
-				/* for now we assume the VDB is a flat directory, e.g.
-				 * there are no subdirs */
-				for (vi = 0; vi < cnt; vi++) {
-					if (move_file(src_fd, files[vi]->d_name,
-							  	  dst_fd, files[vi]->d_name,
-							  	  NULL) != 0)
-						warn("failed to move 'vdb/%s' to '%s': %s",
-							 files[vi]->d_name, buf, strerror(errno));
-				}
-				scandir_free(files, cnt);
-			}
-		}
-	}
+    /* e.g. in case of cross-device rename, try copy+delete */
+    if ((src_fd = open("vdb", O_RDONLY|O_CLOEXEC|O_PATH)) < 0 ||
+      fstat(src_fd, &vst) != 0 ||
+      mkdir_p(buf, vst.st_mode) != 0 ||
+      (dst_fd = open(buf, O_RDONLY|O_CLOEXEC|O_PATH)) < 0 ||
+      (cnt = scandirat(src_fd, ".",
+               &files, filter_self_parent, NULL)) < 0)
+    {
+      warn("cannot stat 'vdb' or create '%s', huh?", buf);
+    } else {
+      /* for now we assume the VDB is a flat directory, e.g.
+       * there are no subdirs */
+      for (vi = 0; vi < cnt; vi++) {
+        if (move_file(src_fd, files[vi]->d_name,
+                  dst_fd, files[vi]->d_name,
+                  NULL) != 0)
+          warn("failed to move 'vdb/%s' to '%s': %s",
+             files[vi]->d_name, buf, strerror(errno));
+      }
+      scandir_free(files, cnt);
+    }
+  }
+}
 
-	/* clean up our local temp dir */
-	xchdir("..");
-	rm_rf(mpkg->atom->PF);
-	/* don't care about return */
-	rmdir("../qmerge");
+/* clean up our local temp dir */
+xchdir("..");
+rm_rf(mpkg->atom->PF);
+/* don't care about return */
+rmdir("../qmerge");
 
-	printf("%s>>>%s %s\n",
-			YELLOW, NORM, atom_format("%[CAT]%[PF]", mpkg->atom));
+printf("%s>>>%s %s\n",
+    YELLOW, NORM, atom_format("%[CAT]%[PF]", mpkg->atom));
 
-	tree_close_cat(cat_ctx);
-	tree_close(vdb);
+tree_close_cat(cat_ctx);
+tree_close(vdb);
 }
 
 static int
 pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
-		int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv,
-    cur_pkg_tree_node *cur_pkg_tree)
+  int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv,
+  cur_pkg_tree_node *cur_pkg_tree)
 {
-	tree_cat_ctx *cat_ctx = pkg_ctx->cat_ctx;
-	char *phases;
-	char *eprefix;
-	size_t eprefix_len;
-	const char *T;
-	char *buf;
-	char *savep;
-	int portroot_fd;
-	llist_char *dirs = NULL;
-	bool unmerge_config_protected;
+tree_cat_ctx *cat_ctx = pkg_ctx->cat_ctx;
+char *phases;
+char *eprefix;
+size_t eprefix_len;
+const char *T;
+char *buf;
+char *savep;
+int portroot_fd;
+llist_char *dirs = NULL;
+bool unmerge_config_protected;
 
-	buf = phases = NULL;
-	T = "${PWD}/temp";
+buf = phases = NULL;
+T = "${PWD}/temp";
 
-	printf("%s***%s unmerging %s\n", YELLOW, NORM,
-			atom_format("%[CATEGORY]%[PF]", tree_get_atom(pkg_ctx, false)));
+printf("%s***%s unmerging %s\n", YELLOW, NORM,
+    atom_format("%[CATEGORY]%[PF]", tree_get_atom(pkg_ctx, false)));
 
-	portroot_fd = cat_ctx->ctx->portroot_fd;
+portroot_fd = cat_ctx->ctx->portroot_fd;
 
-	/* execute the pkg_prerm step if we're just unmerging, not when
-	 * replacing, pkg_merge will have called prerm right before merging
-	 * the replacement package */
-	if (!pretend && rpkg == NULL) {
-		buf = tree_pkg_meta_get(pkg_ctx, EAPI);
-		if (buf == NULL)
-			buf = (char *)"0";  /* default */
-		phases = tree_pkg_meta_get(pkg_ctx, DEFINED_PHASES);
-		if (phases != NULL) {
-			mkdirat(pkg_ctx->fd, "temp", 0755);
-			pkg_run_func_at(pkg_ctx->fd, ".", phases, PKG_PRERM,
-							T, T, buf, "");
-		}
-	}
+/* execute the pkg_prerm step if we're just unmerging, not when
+ * replacing, pkg_merge will have called prerm right before merging
+ * the replacement package */
+if (!pretend && rpkg == NULL) {
+  buf = tree_pkg_meta_get(pkg_ctx, EAPI);
+  if (buf == NULL)
+    buf = (char *)"0";  /* default */
+  phases = tree_pkg_meta_get(pkg_ctx, DEFINED_PHASES);
+  if (phases != NULL) {
+    mkdirat(pkg_ctx->fd, "temp", 0755);
+    pkg_run_func_at(pkg_ctx->fd, ".", phases, PKG_PRERM,
+            T, T, buf, "");
+  }
+}
 
-	eprefix = tree_pkg_meta_get(pkg_ctx, EPREFIX);
-	if (eprefix == NULL)
-		eprefix_len = 0;
-	else
-		eprefix_len = strlen(eprefix);
+eprefix = tree_pkg_meta_get(pkg_ctx, EPREFIX);
+if (eprefix == NULL)
+  eprefix_len = 0;
+else
+  eprefix_len = strlen(eprefix);
 
-	unmerge_config_protected =
-		contains_set("config-protect-if-modified", features);
+unmerge_config_protected =
+  contains_set("config-protect-if-modified", features);
 
-	/* get a handle on the things to clean up */
-	buf = tree_pkg_meta_get(pkg_ctx, CONTENTS);
-	if (buf == NULL)
-		return 1;
+/* get a handle on the things to clean up */
+buf = tree_pkg_meta_get(pkg_ctx, CONTENTS);
+if (buf == NULL)
+  return 1;
 
-	for (; (buf = strtok_r(buf, "\n", &savep)) != NULL; buf = NULL) {
-		bool            del;
-		contents_entry *e;
-		char            zing[20];
-		int             protected = 0;
-		struct stat     st;
+for (; (buf = strtok_r(buf, "\n", &savep)) != NULL; buf = NULL) {
+  bool            del;
+  contents_entry *e;
+  char            zing[20];
+  int             protected = 0;
+  struct stat     st;
 
-		e = contents_parse_line(buf);
-		if (!e)
-			continue;
+  e = contents_parse_line(buf);
+  if (!e)
+    continue;
 
-		protected = config_protected(e->name + eprefix_len,
-				cp_argc, cp_argv, cpm_argc, cpm_argv);
+  protected = config_protected(e->name + eprefix_len,
+      cp_argc, cp_argv, cpm_argc, cpm_argv);
+  /* This should never happen ... */
+  assert(e->name[0] == '/' && e->name[1] != '/');
 
-		/* This should never happen ... */
-		assert(e->name[0] == '/' && e->name[1] != '/');
+  /* Should we remove in order symlinks,objects,dirs ? */
+  switch (e->type) {
+    case CONTENTS_DIR: {
+      /* since the dir contains files, we remove it later */
+      llist_char *list = xmalloc(sizeof(llist_char));
+      list->data = xstrdup(e->name);
+      list->next = dirs;
+      dirs = list;
+      continue;
+    }
 
-		/* Should we remove in order symlinks,objects,dirs ? */
-		switch (e->type) {
-			case CONTENTS_DIR: {
-				/* since the dir contains files, we remove it later */
-				llist_char *list = xmalloc(sizeof(llist_char));
-				list->data = xstrdup(e->name);
-				list->next = dirs;
-				dirs = list;
-				continue;
-			}
+    case CONTENTS_OBJ:
+      if (protected && unmerge_config_protected) {
+        /* If the file wasn't modified, unmerge it */
+        char *hash = hash_file_at(portroot_fd,
+            e->name + 1, HASH_MD5);
+        protected = 0;
+        if (hash != NULL)  /* if file was not removed */
+            protected = strcmp(e->digest, (const char *)hash);
+        if(protected)
+        {
+            protected = !is_in_tree(cur_pkg_tree,e->name,hash,strlen(e->name));
 
-			case CONTENTS_OBJ:
-				if (protected && unmerge_config_protected) {
-					/* If the file wasn't modified, unmerge it */
-					char *hash = hash_file_at(portroot_fd,
-							e->name + 1, HASH_MD5);
-					protected = 0;
-					if (hash != NULL)  /* if file was not removed */
-						  protected = strcmp(e->digest, (const char *)hash);
+          }
 				}
 				break;
 
@@ -1615,7 +1621,8 @@ pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
 		snprintf(zing, sizeof(zing), "%s%s%s",
 				protected ? YELLOW : GREEN,
 				protected ? "***" : "<<<" , NORM);
-		if (protected && e->type == CONTENTS_OBJ && !is_in_tree(cur_pkg_tree,e->name,hash_file_at(portroot_fd, e->name + 1, HASH_MD5),strlen(e->name) ) ) {
+    
+    if(protected) {
 			qprintf("%s %s\n", zing, e->name);
 			continue;
 		}
@@ -1978,9 +1985,9 @@ qmerge_run(set *todo)
 
       //patch
       cur_pkg_tree_node *cur_pkg_tree=NULL;
-      const char var_db_pkg_path[] = "/var/db/pkg/";
+      const char var_db_pkg_path[] = "/var/db/pkg";
       create_cur_pkg_tree(var_db_pkg_path,&cur_pkg_tree);
-      in_order_visit(cur_pkg_tree);
+      // in_order_visit(cur_pkg_tree);
       //end patch
 
 			for (i = 0; i < todo_cnt; i++) {
