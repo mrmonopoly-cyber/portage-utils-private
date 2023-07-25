@@ -863,7 +863,7 @@ merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
 			if (config_protected(cpath + eprefix_len,
 						cp_argc, cp_argv, cpm_argc, cpm_argv) &&
 					fstatat(subfd_dst, name, &ignore, AT_SYMLINK_NOFOLLOW) == 0 && 
-          !is_in_tree(cur_pkg_tree,cpath + eprefix_len, hash,strlen(cpath + eprefix_len)))
+          !is_default(cur_pkg_tree,cpath + eprefix_len) )
 			{
 				/* ._cfg####_ */
 				char *num;

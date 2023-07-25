@@ -198,16 +198,32 @@ int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash,size_
   size_t key;
   char * hash_file=NULL;
   int res=0;
-  hash_file = hash_from_file(file_path_complete);
-  printf("in tree hash of feil %s is %s\n",file_path_complete,hash_file);
-  key= hash_from_string(file_path_complete,len);
 
-  res = find_in_tree(root,key,hash_file,file_path_complete);
+  hash_file = hash_from_file(file_path_complete);
+  res = find_in_tree(root,key,hash,file_path_complete);
+
   free(hash_file);
   hash_file=NULL;
+
   return res;
 }
 
+int is_default(cur_pkg_tree_node *root,char *file_path_complete)
+{
+  size_t key;
+  char * hash_file=NULL;
+  int res=0;
+
+  hash_file = hash_from_file(file_path_complete);
+  key= hash_from_string(file_path_complete,len);
+
+  res = find_in_tree(root,key,hash_file,file_path_complete);
+
+  free(hash_file);
+  hash_file=NULL;
+  
+  return res;
+}
 
 void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
 {
