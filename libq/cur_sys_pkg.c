@@ -25,13 +25,29 @@ void in_order_visit(cur_pkg_tree_node *root)
   if(root!=NULL)
   {
     in_order_visit(root->minor);
-    printf("[%ld,%s,%s]\n",root->key,root->start_buffer,root->start_buffer + root->offset_to_hash);
+    printf("[%s,%s,%s]\n",root->key,root->start_buffer,root->start_buffer + root->offset_to_hash);
     in_order_visit(root->greater);
   }
 }
 
+int compare_hash_num(char *hash1,char*hash2)
+{
+  int temp1,temp2;
+  for(int i=0;i<HASH_SIZE;++i)
+  {
+    temp1=hash1[i];
+    temp2=hash2[i];
+    if(temp1 < temp2)
+    {
+      return 1;
+    }else if (temp1 > temp2) {
+      return 0;
+    }
+  }
+  return -1;
+}
 
-static void add_node(cur_pkg_tree_node **root,char *data,size_t key,size_t offset)
+static void add_node(cur_pkg_tree_node **root,char *data,char *key,size_t offset,char *package_name)
 {
   if(*root==NULL)
   {
@@ -39,14 +55,17 @@ static void add_node(cur_pkg_tree_node **root,char *data,size_t key,size_t offse
     (*root)->key=key;
     (*root)->start_buffer=data;
     (*root)->offset_to_hash=offset;
+    (*root)->package_name=package_name;
     (*root)->greater=NULL;
     (*root)->minor=NULL;
     return;
   }
-  if(key>=(*root)->key) add_node(&(*root)->greater,data,key,offset);
-  if(key<(*root)->key) add_node(&(*root)->minor,data,key,offset);
 
-  assert("why are you here");
+  int is_greater=compare_hash_num((*root)->key,key);
+  assert(is_greater != -1);
+  if(is_greater) add_node(&(*root)->greater,data,key,offset,package_name);
+  if(!is_greater) add_node(&(*root)->minor,data,key,offset,package_name);
+
   return;
 }
 
@@ -70,7 +89,7 @@ static char *hash_from_file(char *file_path_complete)
   }
   MD5_Final(hex_hash,&ctx);
 
-  hash_hex(out,hex_hash,16);
+  hash_hex(out,hex_hash,(HASH_SIZE>>1));
   out[HASH_SIZE]='\0';
 
   fclose(file_to_hash);
@@ -78,13 +97,20 @@ static char *hash_from_file(char *file_path_complete)
   return out;
 }
 
-size_t hash_from_string(char *str,size_t len)
+char *hash_from_string(char *str,size_t len)
 {
-  size_t res=0;
-  for (size_t i = 0; i < len; i++) {
-    res+=(size_t)str[i];
-  }
-  return res;
+  unsigned char hex_buf[len];
+  char *hash_final=calloc(HASH_SIZE+1,sizeof(*hash_final));
+  hash_final[32]='\0';
+  hex_buf[len-1]='\0';
+  MD5_CTX ctx;
+  
+  MD5_Init(&ctx);
+  MD5_Update(&ctx,str,len);
+  MD5_Final(hex_buf,&ctx);
+  hash_hex(hash_final,hex_buf,(HASH_SIZE>>1));
+  
+  return hash_final;
 }
 
 
@@ -97,15 +123,21 @@ static int is_dir(char *string)
 
 static void read_file_add_data(cur_pkg_tree_node **root)
 {
+  FILE *CATEGORY=fopen("./CATEGORY","r");
   FILE *CONTENTS=fopen("./CONTENTS","r");
   int byte_read = 0;
+  char *package_name;
   char *line_buffer=NULL;
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
   char *data_buffer=NULL;
   size_t line_buffer_size=0;
-  size_t key=0;
+  size_t package_name_size=0;
+  char *key=NULL;
   
+  byte_read = getline(&package_name,&package_name_size,CATEGORY);
+  package_name[byte_read-1]='\0';
+
   while( (byte_read=getline(&line_buffer,&line_buffer_size,CONTENTS)) != -1 )
   {
     if(line_buffer[0]=='o' && line_buffer[1]=='b' && line_buffer[2]=='j')
@@ -135,15 +167,17 @@ static void read_file_add_data(cur_pkg_tree_node **root)
       key=hash_from_string(data_buffer,(size_data_string -1) - HASH_SIZE);
 
       //tree
-      add_node(root,data_buffer,key,size_data_string - HASH_SIZE);
+      add_node(root,data_buffer,key,size_data_string - HASH_SIZE,package_name);
 
       }
+      key=NULL;
       data_buffer=NULL;
       line_buffer_start_path=NULL;
       line_buffer_end=NULL;
   }
 
   fclose(CONTENTS);
+  fclose(CATEGORY);
   free(line_buffer);
   data_buffer=NULL;
   line_buffer=NULL;
@@ -151,18 +185,19 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   line_buffer_start_path=NULL;
 }
 
-static int find_in_tree(cur_pkg_tree_node *root,size_t key,char *hash,char *path)
+static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char *category)
 {
   if(root != NULL)
-  {
-    if(key==root->key && !strcmp(path,root->start_buffer)) 
+  { 
+    int is_greater=compare_hash_num(root->key,hash);
+    
+    if(is_greater)
+      return find_in_tree(root->greater,key,hash,category);
+    if(!is_greater)
+      return find_in_tree(root->minor,key,hash,category);
+
+    if(is_greater == -1 && !strcmp(category,root->package_name))
       return !strcmp(hash,root->start_buffer + root->offset_to_hash);
-
-    if(key>=root->key) 
-      return find_in_tree(root->greater,key,hash,path);
-
-    if(key<root->key) 
-      return find_in_tree(root->minor,key,hash,path);
   }
   return 0;
 }
@@ -193,35 +228,25 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
   return 0;
 }
 
-int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash)
+int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash,const char *category)
 {
-  size_t key;
-  char * hash_file=NULL;
+  char *key;
+  int to_free = 0;
   int res=0;
-  size_t len = strlen(file_path_complete);
-  hash_file = hash_from_file(file_path_complete);
-  res = find_in_tree(root,key,hash,file_path_complete);
+  if(hash == NULL)
+  {
+    hash = hash_from_file(file_path_complete);
+    to_free=1;
+  }
+  key= hash_from_string(file_path_complete,strlen(file_path_complete));
+  res = find_in_tree(root,key,hash,category);
 
-  free(hash_file);
-  hash_file=NULL;
+  if(to_free)
+  {
+    free(hash);
+    hash=NULL;
+  }
 
-  return res;
-}
-
-int is_default(cur_pkg_tree_node *root,char *file_path_complete)
-{
-  size_t key;
-  char * hash_file=NULL;
-  int res=0;
-  size_t len = strlen(file_path_complete);
-  hash_file = hash_from_file(file_path_complete);
-  key= hash_from_string(file_path_complete,len);
-
-  res = find_in_tree(root,key,hash_file,file_path_complete);
-
-  free(hash_file);
-  hash_file=NULL;
-  
   return res;
 }
 
@@ -231,6 +256,7 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
   {
     destroy_cur_pkg_tree(root->greater);
     destroy_cur_pkg_tree(root->minor);
+    free(root->start_buffer);
     free(root);
   }
 }

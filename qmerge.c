@@ -767,7 +767,7 @@ static int
 merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
               FILE *contents, size_t eprefix_len, set **objs, char **cpathp,
               int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv, 
-              cur_pkg_tree_node *cur_pkg_tree)
+              cur_pkg_tree_node *cur_pkg_tree,const char *category)
 {
 	int i, ret, subfd_src, subfd_dst;
 	DIR *dir;
@@ -839,7 +839,7 @@ merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
 			/* Copy all of these contents */
 			merge_tree_at(subfd_src, name,
 					subfd_dst, name, contents, eprefix_len,
-					objs, cpathp, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree);
+					objs, cpathp, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree,category);
 			cpath = *cpathp;
 			mnlen = 0;
 
@@ -858,12 +858,12 @@ merge_tree_at(int fd_src, const char *src, int fd_dst, const char *dst,
 			if (!pretend)
 				fprintf(contents, "obj %s %s %zu""\n",
 					cpath, hash ? hash : "xxx", (size_t)st.st_mtime);
-      // printf("cpath+eprefix_len %s\thash %s\n",cpath + eprefix_len,hash);
-			/* Check CONFIG_PROTECT */
+
+			/* Check CONFIG_PROTECT  and if the current file in the system is a default*/
 			if (config_protected(cpath + eprefix_len,
 						cp_argc, cp_argv, cpm_argc, cpm_argv) &&
 					fstatat(subfd_dst, name, &ignore, AT_SYMLINK_NOFOLLOW) == 0 && 
-          !is_default(cur_pkg_tree,cpath + eprefix_len) )
+          !is_default(cur_pkg_tree,cpath + eprefix_len,category) )
 			{
 				/* ._cfg####_ */
 				char *num;
@@ -1390,7 +1390,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 
 		ret = merge_tree_at(AT_FDCWD, "image",
 				AT_FDCWD, portroot, contents, eprefix_len,
-				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree);
+				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree,mpkg->pkg->cat_ctx->name);
 
 		free(cpath);
 
@@ -1589,7 +1589,7 @@ for (; (buf = strtok_r(buf, "\n", &savep)) != NULL; buf = NULL) {
             protected = strcmp(e->digest, (const char *)hash);
         if(protected)
         {
-            protected = !is_in_tree(cur_pkg_tree,e->name,hash);
+            protected = !is_in_tree(cur_pkg_tree,e->name,hash,NULL);
 
           }
 				}
