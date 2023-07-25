@@ -102,7 +102,7 @@ typedef struct llist_char_t llist_char;
 
 static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
 static void pkg_merge(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
-static int pkg_unmerge(tree_pkg_ctx *, depend_atom *, set *, int, char **, int, char **,cur_pkg_tree_node *);
+static int pkg_unmerge(tree_pkg_ctx *, depend_atom *, set *, int, char **, int, char **,cur_pkg_tree_node *,const char *);
 
 static bool
 qmerge_prompt(const char *p)
@@ -1409,7 +1409,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 			/* We need to really set this unmerge pending after we
 			 * look at contents of the new pkg */
 			pkg_unmerge(previnst->pkg, mpkg->atom, objs,
-					cp_argc, cp_argv, cpm_argc, cpm_argv,cur_pkg_tree);
+					cp_argc, cp_argv, cpm_argc, cpm_argv,cur_pkg_tree,mpkg->pkg->cat_ctx->name);
 			break;
 		default:
 			warn("no idea how we reached here.");
@@ -1502,7 +1502,7 @@ tree_close(vdb);
 static int
 pkg_unmerge(tree_pkg_ctx *pkg_ctx, depend_atom *rpkg, set *keep,
   int cp_argc, char **cp_argv, int cpm_argc, char **cpm_argv,
-  cur_pkg_tree_node *cur_pkg_tree)
+  cur_pkg_tree_node *cur_pkg_tree,const char *category)
 {
 tree_cat_ctx *cat_ctx = pkg_ctx->cat_ctx;
 char *phases;
@@ -1589,9 +1589,9 @@ for (; (buf = strtok_r(buf, "\n", &savep)) != NULL; buf = NULL) {
             protected = strcmp(e->digest, (const char *)hash);
         if(protected)
         {
-            protected = !is_in_tree(cur_pkg_tree,e->name,hash,NULL);
+            protected = !is_in_tree(cur_pkg_tree,e->name,hash,category);
 
-          }
+        }
 				}
 				break;
 
@@ -1857,7 +1857,7 @@ qmerge_unmerge_cb(tree_pkg_ctx *pkg_ctx, void *priv)
 	for (p = todo; *p != NULL; p++) {
 		if (qlist_match(pkg_ctx, *p, NULL, true, false))
 			pkg_unmerge(pkg_ctx, NULL, NULL,
-					cp_argc, cp_argv, cpm_argc, cpm_argv, NULL);
+					cp_argc, cp_argv, cpm_argc, cpm_argv, NULL,NULL);
 	}
 
 	free(todo);

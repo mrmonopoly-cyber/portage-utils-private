@@ -30,17 +30,26 @@ void in_order_visit(cur_pkg_tree_node *root)
   }
 }
 
-int compare_hash_num(char *hash1,char*hash2)
+static unsigned int conv_char_int(char dig)
+{
+  if((int) dig > 57) 
+  {
+    return (int)dig - 87;
+  }
+  return (int )dig - 48;
+}
+
+static int compare_hash_num(char *hash1,char*hash2)
 {
   int temp1,temp2;
   for(int i=0;i<HASH_SIZE;++i)
   {
-    temp1=hash1[i];
-    temp2=hash2[i];
-    if(temp1 < temp2)
+    temp1=conv_char_int(hash1[i]);
+    temp2=conv_char_int(hash2[i]);
+    if(temp2 > temp1)
     {
       return 1;
-    }else if (temp1 > temp2) {
+    }else if (temp2 < temp1) {
       return 0;
     }
   }
@@ -62,7 +71,10 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,size_t offset
   }
 
   int is_greater=compare_hash_num((*root)->key,key);
-  assert(is_greater != -1);
+  if(is_greater== -1) 
+  {
+    printf("reinserting %s\n",(*root)->start_buffer);
+  }
   if(is_greater) add_node(&(*root)->greater,data,key,offset,package_name);
   if(!is_greater) add_node(&(*root)->minor,data,key,offset,package_name);
 
@@ -99,10 +111,10 @@ static char *hash_from_file(char *file_path_complete)
 
 char *hash_from_string(char *str,size_t len)
 {
-  unsigned char hex_buf[len];
+  unsigned char hex_buf[HASH_SIZE+1];
   char *hash_final=calloc(HASH_SIZE+1,sizeof(*hash_final));
-  hash_final[32]='\0';
-  hex_buf[len-1]='\0';
+  hash_final[HASH_SIZE]='\0';
+  hex_buf[HASH_SIZE]='\0';
   MD5_CTX ctx;
   
   MD5_Init(&ctx);
@@ -179,6 +191,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   fclose(CONTENTS);
   fclose(CATEGORY);
   free(line_buffer);
+  package_name=NULL;
   data_buffer=NULL;
   line_buffer=NULL;
   line_buffer_end=NULL;
@@ -189,15 +202,15 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
 {
   if(root != NULL)
   { 
-    int is_greater=compare_hash_num(root->key,hash);
+    int is_greater=compare_hash_num(root->key,key);
     
+    if(is_greater == -1 && !strcmp(category,root->package_name))
+      return !strcmp(hash,root->start_buffer + root->offset_to_hash);
     if(is_greater)
       return find_in_tree(root->greater,key,hash,category);
     if(!is_greater)
       return find_in_tree(root->minor,key,hash,category);
 
-    if(is_greater == -1 && !strcmp(category,root->package_name))
-      return !strcmp(hash,root->start_buffer + root->offset_to_hash);
   }
   return 0;
 }
@@ -257,6 +270,11 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
     destroy_cur_pkg_tree(root->greater);
     destroy_cur_pkg_tree(root->minor);
     free(root->start_buffer);
+    root->start_buffer=NULL;
+    free(root->key);
+    root->key=NULL;
+    free(root->package_name);
+    root->package_name=NULL;
     free(root);
   }
 }
