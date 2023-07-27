@@ -93,7 +93,6 @@ static char *hash_from_file(char *file_path_complete)
     out[2]='\0';
 
     fclose(file_to_hash);
-    free(ctx);
 
     return out;
   }
@@ -109,7 +108,6 @@ static char *hash_from_file(char *file_path_complete)
   out[HASH_SIZE]='\0';
 
   fclose(file_to_hash);
-  free(ctx);
 
   return out;
 }
@@ -219,7 +217,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
 
 static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char *category)
 {
-  if(!strcmp(hash,"-1")) return 0;
+  if(!strcmp(hash,"-1")) return 1;
 
   if(root != NULL)
   { 
