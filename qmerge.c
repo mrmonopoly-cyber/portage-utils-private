@@ -1379,6 +1379,13 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 			break;
 	}
 
+  int category_len=strlen(mpkg->atom->CATEGORY);
+  int pkg_name_len=strlen(mpkg->atom->PN);
+  char *category=calloc(category_len + 1 + pkg_name_len +1,sizeof(*category));
+  strcat(category,mpkg->atom->CATEGORY);
+  strcat(category,"/");
+  strcat(category,mpkg->atom->PN);
+      
 	objs = NULL;
 	if ((contents = fopen("vdb/CONTENTS", "w")) == NULL) {
 		errf("could not open vdb/CONTENTS for writing");
@@ -1387,10 +1394,10 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 		int ret;
 
 		cpath = xstrdup("");  /* xrealloced in merge_tree_at */
-
+  
 		ret = merge_tree_at(AT_FDCWD, "image",
 				AT_FDCWD, portroot, contents, eprefix_len,
-				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree,mpkg->pkg->cat_ctx->name);
+				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree,category);
 
 		free(cpath);
 
@@ -1409,7 +1416,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 			/* We need to really set this unmerge pending after we
 			 * look at contents of the new pkg */
 			pkg_unmerge(previnst->pkg, mpkg->atom, objs,
-					cp_argc, cp_argv, cpm_argc, cpm_argv,cur_pkg_tree,mpkg->pkg->cat_ctx->name);
+					cp_argc, cp_argv, cpm_argc, cpm_argv,cur_pkg_tree,category);
 			break;
 		default:
 			warn("no idea how we reached here.");
