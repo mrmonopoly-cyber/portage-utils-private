@@ -1,8 +1,5 @@
 #include "config.h"
 
-#define HASH_SIZE 32
-#define SIZE_STR_VAR_DB_PKG 12
-
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <assert.h>
@@ -20,6 +17,8 @@
 #include "cur_sys_pkg.h"
 
 
+#define HASH_SIZE 32
+#define SIZE_STR_VAR_DB_PKG 12
 
 //private
 static unsigned int conv_char_int(char dig)
@@ -65,7 +64,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,size_t offset
   int is_greater=compare_hash_num((*root)->key,key);
   if(is_greater== -1) 
   {
-    printf("reinserting %s\n",(*root)->start_buffer);
+    printf("reinserting %s, problably there are two packages wich update the same file\n",(*root)->start_buffer);
   }
   if(is_greater) add_node(&(*root)->greater,data,key,offset,package_name);
   if(!is_greater) add_node(&(*root)->minor,data,key,offset,package_name);
@@ -85,6 +84,19 @@ static char *hash_from_file(char *file_path_complete)
   out=calloc(HASH_SIZE+1, sizeof(*out));
 
   file_to_hash = fopen(file_path_complete,"r");
+  if(file_to_hash == NULL)
+  {
+    fprintf(stderr, "%s not found\n",file_path_complete);
+    out=calloc(3, sizeof(*out));
+    out[0]='-';
+    out[1]='1';
+    out[2]='\0';
+
+    fclose(file_to_hash);
+    free(ctx);
+
+    return out;
+  }
   MD5_Init(&ctx);
 
   size_t byte_read=0;
@@ -97,6 +109,7 @@ static char *hash_from_file(char *file_path_complete)
   out[HASH_SIZE]='\0';
 
   fclose(file_to_hash);
+  free(ctx);
 
   return out;
 }
@@ -206,6 +219,8 @@ static void read_file_add_data(cur_pkg_tree_node **root)
 
 static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char *category)
 {
+  if(!strcmp(hash,"-1")) return 0;
+
   if(root != NULL)
   { 
     int is_greater=compare_hash_num(root->key,key);
