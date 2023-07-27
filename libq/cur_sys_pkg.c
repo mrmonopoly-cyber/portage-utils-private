@@ -289,7 +289,9 @@ void in_order_visit(cur_pkg_tree_node *root)
 {
   if(root!=NULL)
   {
+    if(root->minor!=NULL) in_order_visit(root->minor);
     printf("[%s,%s,%s,%s]\n",root->key,root->start_buffer,
            root->start_buffer + root->offset_to_hash,root->package_name);
+    if(root->greater!=NULL) in_order_visit(root->greater);
   }
 }
