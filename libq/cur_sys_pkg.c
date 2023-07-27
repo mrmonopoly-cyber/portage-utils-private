@@ -1,5 +1,8 @@
 #include "config.h"
 
+#define HASH_SIZE 32
+#define SIZE_STR_VAR_DB_PKG 12
+
 #include <openssl/md5.h>
 #include <openssl/sha.h>
 #include <assert.h>
@@ -11,25 +14,14 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "atom.h"
 #include "hash.h"
 #include "xchdir.h"
 #include "cur_sys_pkg.h"
 
-#define HASH_SIZE 32
-
 
 
 //private
-void in_order_visit(cur_pkg_tree_node *root)
-{
-  if(root!=NULL)
-  {
-    in_order_visit(root->minor);
-    printf("[%s,%s,%s]\n",root->key,root->start_buffer,root->start_buffer + root->offset_to_hash);
-    in_order_visit(root->greater);
-  }
-}
-
 static unsigned int conv_char_int(char dig)
 {
   if((int) dig > 57) 
@@ -135,20 +127,31 @@ static int is_dir(char *string)
 
 static void read_file_add_data(cur_pkg_tree_node **root)
 {
-  FILE *CATEGORY=fopen("./CATEGORY","r");
   FILE *CONTENTS=fopen("./CONTENTS","r");
   int byte_read = 0;
   char *package_name;
+  char *pwd;
+  char *start_category;
   char *line_buffer=NULL;
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
   char *data_buffer=NULL;
   size_t line_buffer_size=0;
-  size_t package_name_size=0;
   char *key=NULL;
+   
+  pwd = get_current_dir_name();
+  start_category=pwd+SIZE_STR_VAR_DB_PKG;
+  depend_atom * atom=atom_explode(start_category);
+  assert(atom!=NULL);
+  assert(atom->CATEGORY!=NULL);
+  assert(atom->PN!=NULL);
+  int cat_len=strlen(atom->CATEGORY);
+  int name_len=strlen(atom->PN);
+  package_name=calloc(cat_len +1+ name_len +1, sizeof(*package_name));
+  strcat(package_name,atom->CATEGORY);
+  strcat(package_name,"/");
+  strcat(package_name,atom->PN);
   
-  byte_read = getline(&package_name,&package_name_size,CATEGORY);
-  package_name[byte_read-1]='\0';
 
   while( (byte_read=getline(&line_buffer,&line_buffer_size,CONTENTS)) != -1 )
   {
@@ -189,8 +192,11 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   }
 
   fclose(CONTENTS);
-  fclose(CATEGORY);
   free(line_buffer);
+  free(pwd);
+  free(atom);
+  pwd=NULL;
+  start_category=NULL;
   package_name=NULL;
   data_buffer=NULL;
   line_buffer=NULL;
@@ -276,5 +282,14 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
     free(root->package_name);
     root->package_name=NULL;
     free(root);
+  }
+}
+
+void in_order_visit(cur_pkg_tree_node *root)
+{
+  if(root!=NULL)
+  {
+    printf("[%s,%s,%s,%s]\n",root->key,root->start_buffer,
+           root->start_buffer + root->offset_to_hash,root->package_name);
   }
 }

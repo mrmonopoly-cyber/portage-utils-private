@@ -35,6 +35,7 @@ QFILES += hash_md5_sha1.c hash_md5_sha1.h
 endif
 endif
 
+
 noinst_LIBRARIES = libq.a
 libq_a_SOURCES = $(QFILES)
 libq_a_CPPFLAGS = \
