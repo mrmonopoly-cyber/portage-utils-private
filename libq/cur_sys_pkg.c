@@ -62,14 +62,18 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
   }
 
   int is_greater=compare_hash_num((*root)->key,key);
-  if(is_greater== -1) 
+  if(is_greater== 0) 
   {
     printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n",package_name,(*root)->package_name,data);
   }
-  if(is_greater) add_node(&(*root)->greater,data,key,package_name);
-  if(!is_greater) add_node(&(*root)->minor,data,key,package_name);
-
-  return;
+  switch (is_greater) {
+    case 1:
+      add_node(&(*root)->greater,data,key,package_name);
+      break;
+    case -1:
+      add_node(&(*root)->minor,data,key,package_name);
+      break;
+  }
 }
 
 static char *hash_from_file(char *file_path_complete)
