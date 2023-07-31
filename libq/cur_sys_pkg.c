@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <xllaoc.h>
 
 #include "atom.h"
 #include "hash.h"
@@ -51,7 +52,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,size_t offset
 {
   if(*root==NULL)
   {
-    *root=calloc(1,sizeof(**root));
+    *root=xmalloc(1*sizeof(**root));
     (*root)->key=key;
     (*root)->start_buffer=data;
     (*root)->offset_to_hash=offset;
@@ -81,13 +82,14 @@ static char *hash_from_file(char *file_path_complete)
   MD5_CTX ctx;
   
   char *out = NULL;
-  out=calloc(HASH_SIZE+1, sizeof(*out));
+  out=xmalloc(HASH_SIZE+1* sizeof(*out));
+  out[HASH_SIZE]='\0';
 
   file_to_hash = fopen(file_path_complete,"r");
   if(file_to_hash == NULL)
   {
     fprintf(stderr, "%s not found\n",file_path_complete);
-    out=calloc(3, sizeof(*out));
+    out=xmalloc(3* sizeof(*out));
     out[0]='-';
     out[1]='1';
     out[2]='\0';
@@ -115,7 +117,7 @@ static char *hash_from_file(char *file_path_complete)
 char *hash_from_string(char *str,size_t len)
 {
   unsigned char hex_buf[HASH_SIZE+1];
-  char *hash_final=calloc(HASH_SIZE+1,sizeof(*hash_final));
+  char *hash_final=xmalloc(HASH_SIZE+1*sizeof(*hash_final));
   hash_final[HASH_SIZE]='\0';
   hex_buf[HASH_SIZE]='\0';
   MD5_CTX ctx;
@@ -158,7 +160,8 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   assert(atom->PN!=NULL);
   int cat_len=strlen(atom->CATEGORY);
   int name_len=strlen(atom->PN);
-  package_name=calloc(cat_len +1+ name_len +1, sizeof(*package_name));
+  package_name=xmalloc(cat_len +1+ name_len +1* sizeof(*package_name));
+  package_name[cat_len + 1 +name_len]='\0';
   strcat(package_name,atom->CATEGORY);
   strcat(package_name,"/");
   strcat(package_name,atom->PN);
