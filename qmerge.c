@@ -2061,11 +2061,9 @@ int qmerge_main(int argc, char **argv)
 	if (!uninstall)
 		qmerge_initialize();
 
-  //patch
   cur_pkg_tree_node *cur_pkg_tree=NULL;
   const char var_db_pkg_path[] = "/var/db/pkg";
   create_cur_pkg_tree(var_db_pkg_path,&cur_pkg_tree);
-  //end patch
 
 	/* Make sure the user wants to do it */
 	if (interactive) {
@@ -2101,6 +2099,6 @@ int qmerge_main(int argc, char **argv)
 		tree_close(_qmerge_binpkg_tree);
 	if (_qmerge_vdb_tree != NULL)
 		tree_close(_qmerge_vdb_tree);
-
+  destroy_cur_pkg_tree(cur_pkg_tree);
 	return ret;
 }
