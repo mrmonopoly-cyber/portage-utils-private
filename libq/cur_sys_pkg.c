@@ -148,24 +148,28 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
   char *hash_buffer=NULL;
-  size_t line_buffer_size=0;
   char *key=NULL;
-   
-  pwd = get_current_dir_name();
-  start_category=pwd+SIZE_STR_VAR_DB_PKG;
-  depend_atom * atom=atom_explode(start_category);
-  assert(atom!=NULL);
-  assert(atom->CATEGORY!=NULL);
-  assert(atom->PN!=NULL);
-  int cat_len=strlen(atom->CATEGORY);
-  int name_len=strlen(atom->PN);
-  package_name=calloc((cat_len +1+ name_len +1), sizeof(*package_name));
-  package_name[cat_len + 1 +name_len]='\0';
-  strcat(package_name,atom->CATEGORY);
-  strcat(package_name,"/");
-  strcat(package_name,atom->PN);
+  size_t line_buffer_size=0;
+  int cat_len, name_len =0;
+  depend_atom *datom;
   
 
+  //get full package name
+  pwd = get_current_dir_name();
+  start_category=pwd+SIZE_STR_VAR_DB_PKG;
+  datom=atom_explode(start_category);
+  assert(datom!=NULL);
+  assert(datom->CATEGORY!=NULL);
+  assert(datom->PN!=NULL);
+  cat_len=strlen(datom->CATEGORY);
+  name_len=strlen(datom->PN);
+  package_name=calloc((cat_len +1+ name_len +1), sizeof(*package_name));
+  package_name[cat_len + 1 +name_len]='\0';
+  strcat(package_name,datom->CATEGORY);
+  strcat(package_name,"/");
+  strcat(package_name,datom->PN);
+  
+  //read file CONTENTS
   while( (byte_read=getline(&line_buffer,&line_buffer_size,CONTENTS)) != -1 )
   {
     if(line_buffer[0]=='o' && line_buffer[1]=='b' && line_buffer[2]=='j')
@@ -264,24 +268,20 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
   return 0;
 }
 
-int is_in_tree(cur_pkg_tree_node *root,char *file_path_complete,char *hash,const char *category)
+int is_default(cur_pkg_tree_node *root,char *file_path_complete,const char *category)
 {
   char *key;
   int to_free = 0;
   int res=0;
-  if(hash == NULL)
-  {
-    hash = hash_from_file(file_path_complete);
-    to_free=1;
-  }
+  char *hash =NULL;
+
+  hash = hash_from_file(file_path_complete);
+  to_free=1;
   key= hash_from_string(file_path_complete,strlen(file_path_complete));
   res = find_in_tree(root,key,hash,category);
 
-  if(to_free)
-  {
-    free(hash);
-    hash=NULL;
-  }
+  free(hash);
+  hash=NULL;
 
   return res;
 }
