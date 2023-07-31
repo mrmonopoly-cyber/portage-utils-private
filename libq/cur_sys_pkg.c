@@ -230,8 +230,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
   if(root != NULL)
   { 
     int is_greater=compare_hash_num(root->key,key);
-      
-    }
+  
     if(is_greater == 0 && !strcmp(category,root->package_name))
       return !strcmp(hash,root->hash_buffer);
 
@@ -245,6 +244,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
       default:
         return 0;
     }
+  }
 }
 
 
