@@ -213,7 +213,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   fclose(CONTENTS);
   free(line_buffer);
   free(pwd);
-  free(atom);
+  free(datom);
   pwd=NULL;
   start_category=NULL;
   package_name=NULL;
@@ -271,16 +271,16 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
 int is_default(cur_pkg_tree_node *root,char *file_path_complete,const char *category)
 {
   char *key;
-  int to_free = 0;
   int res=0;
   char *hash =NULL;
 
   hash = hash_from_file(file_path_complete);
-  to_free=1;
   key= hash_from_string(file_path_complete,strlen(file_path_complete));
   res = find_in_tree(root,key,hash,category);
 
   free(hash);
+  free(key);
+  key=NULL;
   hash=NULL;
 
   return res;
