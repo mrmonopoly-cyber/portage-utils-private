@@ -1499,11 +1499,12 @@ rm_rf(mpkg->atom->PF);
 /* don't care about return */
 rmdir("../qmerge");
 
-printf("%s>>>%s %s\n",
+printf("%s>>>%s %s installed\n",
     YELLOW, NORM, atom_format("%[CAT]%[PF]", mpkg->atom));
 
 tree_close_cat(cat_ctx);
 tree_close(vdb);
+
 }
 
 static int
@@ -1973,7 +1974,7 @@ qmerge_add_set(char *buf, set *q)
 }
 
 static int
-qmerge_run(set *todo)
+qmerge_run(set *todo, cur_pkg_tree_node * cur_pkg_tree)
 {
 	if (uninstall) {
 		return unmerge_packages(todo);
@@ -1989,14 +1990,7 @@ qmerge_run(set *todo)
 			depend_atom *atom;
 			tree_match_ctx *bpkg;
 			int ret = EXIT_FAILURE;
-
-      //patch
-      cur_pkg_tree_node *cur_pkg_tree=NULL;
-      const char var_db_pkg_path[] = "/var/db/pkg";
-      create_cur_pkg_tree(var_db_pkg_path,&cur_pkg_tree);
-      // in_order_visit(cur_pkg_tree);
-      //end patch
-
+      
 			for (i = 0; i < todo_cnt; i++) {
 				atom = atom_explode(todo_strs[i]);
 				bpkg = best_version(atom, BV_BINPKG);    
@@ -2072,6 +2066,12 @@ int qmerge_main(int argc, char **argv)
 	if (!uninstall)
 		qmerge_initialize();
 
+  //patch
+  cur_pkg_tree_node *cur_pkg_tree=NULL;
+  const char var_db_pkg_path[] = "/var/db/pkg";
+  create_cur_pkg_tree(var_db_pkg_path,&cur_pkg_tree);
+  //end patch
+
 	/* Make sure the user wants to do it */
 	if (interactive) {
 		int save_pretend = pretend;
@@ -2081,7 +2081,7 @@ int qmerge_main(int argc, char **argv)
 		pretend = save_pretend ? 10 : 100;
 		verbose = 0;
 		quiet = 1;
-		ret = qmerge_run(todo);
+		ret = qmerge_run(todo,cur_pkg_tree);
 		if (ret != EXIT_SUCCESS || save_pretend)
 			return ret;
 
@@ -2098,7 +2098,7 @@ int qmerge_main(int argc, char **argv)
 		quiet = save_quiet;
 	}
 
-	ret = qmerge_run(todo);
+	ret = qmerge_run(todo,cur_pkg_tree);
 	if (todo != NULL)
 		free_set(todo);
 

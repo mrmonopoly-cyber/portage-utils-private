@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <xllaoc.h>
+#include <xalloc.h>
 
 #include "atom.h"
 #include "hash.h"
@@ -48,14 +48,13 @@ static int compare_hash_num(char *hash1,char*hash2)
   return -1;
 }
 
-static void add_node(cur_pkg_tree_node **root,char *data,char *key,size_t offset,char *package_name)
+static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package_name)
 {
   if(*root==NULL)
   {
     *root=xmalloc(1*sizeof(**root));
     (*root)->key=key;
-    (*root)->start_buffer=data;
-    (*root)->offset_to_hash=offset;
+    (*root)->hash_buffer=data;
     (*root)->package_name=package_name;
     (*root)->greater=NULL;
     (*root)->minor=NULL;
@@ -65,10 +64,10 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,size_t offset
   int is_greater=compare_hash_num((*root)->key,key);
   if(is_greater== -1) 
   {
-    printf("reinserting %s, problably there are two packages wich update the same file\n",(*root)->start_buffer);
+    printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n",package_name,(*root)->package_name,data);
   }
-  if(is_greater) add_node(&(*root)->greater,data,key,offset,package_name);
-  if(!is_greater) add_node(&(*root)->minor,data,key,offset,package_name);
+  if(is_greater) add_node(&(*root)->greater,data,key,package_name);
+  if(!is_greater) add_node(&(*root)->minor,data,key,package_name);
 
   return;
 }
@@ -148,7 +147,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   char *line_buffer=NULL;
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
-  char *data_buffer=NULL;
+  char *hash_buffer=NULL;
   size_t line_buffer_size=0;
   char *key=NULL;
    
@@ -160,7 +159,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   assert(atom->PN!=NULL);
   int cat_len=strlen(atom->CATEGORY);
   int name_len=strlen(atom->PN);
-  package_name=xmalloc(cat_len +1+ name_len +1* sizeof(*package_name));
+  package_name=calloc((cat_len +1+ name_len +1), sizeof(*package_name));
   package_name[cat_len + 1 +name_len]='\0';
   strcat(package_name,atom->CATEGORY);
   strcat(package_name,"/");
@@ -186,21 +185,23 @@ static void read_file_add_data(cur_pkg_tree_node **root)
         --line_buffer_end;
       }
 
-      //path + hash
+      //hash
       *line_buffer_end = '\0';
+      line_buffer_end-=HASH_SIZE;
+      hash_buffer=strdup(line_buffer_end);
+      hash_buffer[HASH_SIZE] = '\0';
+  
+      //path
+      --line_buffer_end;
+      *line_buffer_end='\0';
       line_buffer_start_path=line_buffer+4;
-      data_buffer=strdup(line_buffer_start_path);
-      size_t size_data_string= strlen(data_buffer);
-      data_buffer[(size_data_string -1)- HASH_SIZE] = '\0';
-
-      key=hash_from_string(data_buffer,(size_data_string -1) - HASH_SIZE);
+      key=hash_from_string(line_buffer_start_path,line_buffer_end - line_buffer_start_path);
 
       //tree
-      add_node(root,data_buffer,key,size_data_string - HASH_SIZE,package_name);
-
-      }
+      add_node(root,hash_buffer,key,package_name);
+    }
       key=NULL;
-      data_buffer=NULL;
+      hash_buffer=NULL;
       line_buffer_start_path=NULL;
       line_buffer_end=NULL;
   }
@@ -212,7 +213,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
   pwd=NULL;
   start_category=NULL;
   package_name=NULL;
-  data_buffer=NULL;
+  hash_buffer=NULL;
   line_buffer=NULL;
   line_buffer_end=NULL;
   line_buffer_start_path=NULL;
@@ -227,7 +228,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
     int is_greater=compare_hash_num(root->key,key);
     
     if(is_greater == -1 && !strcmp(category,root->package_name))
-      return !strcmp(hash,root->start_buffer + root->offset_to_hash);
+      return !strcmp(hash,root->hash_buffer);
     if(is_greater)
       return find_in_tree(root->greater,key,hash,category);
     if(!is_greater)
@@ -291,8 +292,8 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
   {
     destroy_cur_pkg_tree(root->greater);
     destroy_cur_pkg_tree(root->minor);
-    free(root->start_buffer);
-    root->start_buffer=NULL;
+    free(root->hash_buffer);
+    root->hash_buffer=NULL;
     free(root->key);
     root->key=NULL;
     free(root->package_name);
@@ -306,8 +307,8 @@ void in_order_visit(cur_pkg_tree_node *root)
   if(root!=NULL)
   {
     if(root->minor!=NULL) in_order_visit(root->minor);
-    printf("[%s,%s,%s,%s]\n",root->key,root->start_buffer,
-           root->start_buffer + root->offset_to_hash,root->package_name);
+    printf("[%s,%s,%s,%s]\n",root->key,root->hash_buffer,
+           root->hash_buffer,root->package_name);
     if(root->greater!=NULL) in_order_visit(root->greater);
   }
 }

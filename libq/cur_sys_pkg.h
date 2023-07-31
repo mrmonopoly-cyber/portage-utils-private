@@ -6,8 +6,7 @@
 //BST node with an entry for key(based on hash of filename) hash found in /var/db/pkg/.../CONTENTS, package fullname of the package
 typedef struct cur_pkg_tree_node {
   char *key;
-  size_t offset_to_hash;
-  char *start_buffer;
+  char *hash_buffer;
   char *package_name;
   struct cur_pkg_tree_node *greater;
   struct cur_pkg_tree_node *minor;
