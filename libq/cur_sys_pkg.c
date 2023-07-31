@@ -42,10 +42,10 @@ static int compare_hash_num(char *hash1,char*hash2)
     {
       return 1;
     }else if (temp2 < temp1) {
-      return 0;
+      return -1;
     }
   }
-  return -1;
+  return 0;
 }
 
 static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package_name)
@@ -230,16 +230,21 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
   if(root != NULL)
   { 
     int is_greater=compare_hash_num(root->key,key);
-    
-    if(is_greater == -1 && !strcmp(category,root->package_name))
+      
+    }
+    if(is_greater == 0 && !strcmp(category,root->package_name))
       return !strcmp(hash,root->hash_buffer);
-    if(is_greater)
-      return find_in_tree(root->greater,key,hash,category);
-    if(!is_greater)
-      return find_in_tree(root->minor,key,hash,category);
 
-  }
-  return 0;
+    switch (is_greater) {
+      case 1:
+        return find_in_tree(root->greater,key,hash,category);
+        break;
+      case -1:
+        return find_in_tree(root->minor,key,hash,category);
+        break;
+      default:
+        return 0;
+    }
 }
 
 
