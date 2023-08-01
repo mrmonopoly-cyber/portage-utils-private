@@ -68,10 +68,10 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
   }
   switch (is_greater) {
     case 1:
-      add_node(&(*root)->greater,data,key,package_name);
+      add_node(&(*root)->greater,data,key,package_name,verbose);
       break;
     case -1:
-      add_node(&(*root)->minor,data,key,package_name);
+      add_node(&(*root)->minor,data,key,package_name,verbose);
       break;
   }
 }
@@ -246,9 +246,9 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
         return find_in_tree(root->minor,key,hash,category);
         break;
       default:
-        return 0;
     }
   }
+  return 0;
 }
 
 
@@ -266,7 +266,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose)
   {
     char *name_file=dirent_struct->d_name;
     if(is_dir(name_file) && name_file[0] != '.'){
-      create_cur_pkg_tree(name_file,root);
+      create_cur_pkg_tree(name_file,root,verbose);
     }else if(!strcmp(name_file,"CONTENTS")){
       read_file_add_data(root,verbose);
     }
