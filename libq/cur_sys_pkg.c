@@ -52,7 +52,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
 {
   if(*root==NULL)
   {
-    *root=xmalloc(1*sizeof(**root));
+    *root=xmalloc(sizeof(**root));
     (*root)->key=key;
     (*root)->hash_buffer=data;
     (*root)->package_name=package_name;
@@ -64,7 +64,8 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
   int is_greater=compare_hash_num((*root)->key,key);
   if(is_greater== 0 && verbose) 
   {
-    printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n",package_name,(*root)->package_name,data);
+    printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
+           ,package_name,(*root)->package_name,data);
   }
   switch (is_greater) {
     case 1:
@@ -206,7 +207,7 @@ static void read_file_add_data(cur_pkg_tree_node **root,int verbose)
       key=hash_from_string(line_buffer_start_path,line_buffer_end - line_buffer_start_path);
 
       //tree
-      add_node(root,hash_buffer,key,package_name,verbose);
+      add_node(root,hash_buffer,key,strdup(package_name),verbose);
     }
       key=NULL;
       hash_buffer=NULL;
@@ -218,6 +219,8 @@ static void read_file_add_data(cur_pkg_tree_node **root,int verbose)
   free(line_buffer);
   free(pwd);
   free(datom);
+  free(package_name);
+  package_name=NULL;
   pwd=NULL;
   start_category=NULL;
   package_name=NULL;
@@ -301,13 +304,18 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
   {
     destroy_cur_pkg_tree(root->greater);
     destroy_cur_pkg_tree(root->minor);
+
     free(root->hash_buffer);
     root->hash_buffer=NULL;
+
     free(root->key);
     root->key=NULL;
+
     free(root->package_name);
     root->package_name=NULL;
+
     free(root);
+    root=NULL;
   }
 }
 

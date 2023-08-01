@@ -2098,6 +2098,7 @@ int qmerge_main(int argc, char **argv)
 		tree_close(_qmerge_binpkg_tree);
 	if (_qmerge_vdb_tree != NULL)
 		tree_close(_qmerge_vdb_tree);
-  destroy_cur_pkg_tree(cur_pkg_tree);
+  if(cur_pkg_tree != NULL)
+      destroy_cur_pkg_tree(cur_pkg_tree);
 	return ret;
 }
