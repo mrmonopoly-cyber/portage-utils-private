@@ -48,7 +48,7 @@ static int compare_hash_num(char *hash1,char*hash2)
   return 0;
 }
 
-static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package_name)
+static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package_name,int verbose)
 {
   if(*root==NULL)
   {
@@ -62,7 +62,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
   }
 
   int is_greater=compare_hash_num((*root)->key,key);
-  if(is_greater== 0) 
+  if(is_greater== 0 && verbose) 
   {
     printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n",package_name,(*root)->package_name,data);
   }
@@ -141,7 +141,7 @@ static int is_dir(char *string)
   return !S_ISREG(path.st_mode);
 }
 
-static void read_file_add_data(cur_pkg_tree_node **root)
+static void read_file_add_data(cur_pkg_tree_node **root,int verbose)
 {
   FILE *CONTENTS=fopen("./CONTENTS","r");
   int byte_read = 0;
@@ -206,7 +206,7 @@ static void read_file_add_data(cur_pkg_tree_node **root)
       key=hash_from_string(line_buffer_start_path,line_buffer_end - line_buffer_start_path);
 
       //tree
-      add_node(root,hash_buffer,key,package_name);
+      add_node(root,hash_buffer,key,package_name,verbose);
     }
       key=NULL;
       hash_buffer=NULL;
@@ -253,7 +253,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
 
 
 //publid
-int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
+int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose)
 { 
   xchdir(path);
 
@@ -268,7 +268,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root)
     if(is_dir(name_file) && name_file[0] != '.'){
       create_cur_pkg_tree(name_file,root);
     }else if(!strcmp(name_file,"CONTENTS")){
-      read_file_add_data(root);
+      read_file_add_data(root,verbose);
     }
   }
   

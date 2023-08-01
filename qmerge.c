@@ -171,7 +171,7 @@ qmerge_initialize(void)
 
 	if (strlen(BUSYBOX) > 0)
 		if (access(BUSYBOX, X_OK) != 0)
-			err(BUSYBOX " must be installed");
+			errte(BUSYBOX " must be installed");
 
 	if (access("/bin/sh", X_OK) != 0)
 		err("/bin/sh must be installed");
@@ -2062,8 +2062,7 @@ int qmerge_main(int argc, char **argv)
 		qmerge_initialize();
 
   cur_pkg_tree_node *cur_pkg_tree=NULL;
-  const char var_db_pkg_path[] = "/var/db/pkg";
-  create_cur_pkg_tree(var_db_pkg_path,&cur_pkg_tree);
+  create_cur_pkg_tree(portvdb,&cur_pkg_tree,verbose);
 
 	/* Make sure the user wants to do it */
 	if (interactive) {
