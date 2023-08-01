@@ -100,8 +100,8 @@ struct llist_char_t {
 
 typedef struct llist_char_t llist_char;
 
-static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
-static void pkg_merge(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
+static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *);
+static void pkg_merge(int, const depend_atom *, const tree_match_ctx *);
 static int pkg_unmerge(tree_pkg_ctx *, depend_atom *, set *, int, char **, int, char **);
 
 static bool
@@ -971,7 +971,7 @@ pkg_extract_xpak_cb(
 
 /* oh shit getting into pkg mgt here. FIXME: write a real dep resolver. */
 static void
-pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pkg_tree_node *cur_pkg_tree)
+pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
 {
 	set            *objs;
 	tree_ctx       *vdb;
@@ -1016,7 +1016,11 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 			mpkg->atom->PN,
 			mpkg->atom->SLOT == NULL ? "0" : mpkg->atom->SLOT);
 	slotatom = atom_explode(buf);
-
+  
+  //alberto create tree
+  cur_pkg_tree_node *cur_pkg_tree=NULL;
+  create_cur_pkg_tree(portvdb,&cur_pkg_tree,verbose,slotatom);
+  //alberto end
 	previnst = best_version(slotatom, BV_INSTALLED);
 	if (previnst != NULL) {
 		/* drop REPO and SUBSLOT from query, we don't care about where
@@ -1071,9 +1075,12 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 							atom_implode(subatom);
 							continue;
 						}
+            //alberto update tree
+            
 
+            //alberto end
 						if (bpkg->pkg->cat_ctx->ctx->cachetype != CACHE_VDB)
-							pkg_fetch(level + 1, subatom, bpkg,cur_pkg_tree);
+							pkg_fetch(level + 1, subatom, bpkg);
 
 						tree_match_close(bpkg);
 						atom_implode(subatom);
@@ -1774,7 +1781,7 @@ pkg_verify_checksums(
 }
 
 static void
-pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pkg_tree_node *cur_pkg_tree)
+pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg)
 {
 	int  verifyret;
 	char buf[_Q_PATH_MAX];
@@ -1783,7 +1790,7 @@ pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 	if (pretend) {
 		if (!install)
 			install++;
-		pkg_merge(level, qatom, mpkg, cur_pkg_tree);
+		pkg_merge(level, qatom, mpkg);
 		return;
 	}
 
@@ -1828,7 +1835,7 @@ pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg,cur_pk
 				mpkg->path);
 		return;
 	} else if (verifyret == 0) {
-		pkg_merge(0, qatom, mpkg,cur_pkg_tree);
+		pkg_merge(0, qatom, mpkg);
 		return;
 	}
 }
@@ -1969,7 +1976,7 @@ qmerge_add_set(char *buf, set *q)
 }
 
 static int
-qmerge_run(set *todo, cur_pkg_tree_node * cur_pkg_tree)
+qmerge_run(set *todo)
 {
 	if (uninstall) {
 		return unmerge_packages(todo);
@@ -1990,7 +1997,7 @@ qmerge_run(set *todo, cur_pkg_tree_node * cur_pkg_tree)
 				atom = atom_explode(todo_strs[i]);
 				bpkg = best_version(atom, BV_BINPKG);    
 				if (bpkg != NULL) {
-					pkg_fetch(0, atom, bpkg,cur_pkg_tree);
+					pkg_fetch(0, atom, bpkg);
 					tree_match_close(bpkg);
 					ret = EXIT_SUCCESS;
 				} else {
@@ -2061,9 +2068,9 @@ int qmerge_main(int argc, char **argv)
 	if (!uninstall)
 		qmerge_initialize();
 
-  cur_pkg_tree_node *cur_pkg_tree=NULL;
-  create_cur_pkg_tree(portvdb,&cur_pkg_tree,verbose);
-
+  // cur_pkg_tree_node *cur_pkg_tree=NULL;
+  // create_cur_pkg_tree(portvdb,&cur_pkg_tree,verbose);
+  //
 	/* Make sure the user wants to do it */
 	if (interactive) {
 		int save_pretend = pretend;
@@ -2073,7 +2080,7 @@ int qmerge_main(int argc, char **argv)
 		pretend = save_pretend ? 10 : 100;
 		verbose = 0;
 		quiet = 1;
-		ret = qmerge_run(todo,cur_pkg_tree);
+		ret = qmerge_run(todo);
 		if (ret != EXIT_SUCCESS || save_pretend)
 			return ret;
 
@@ -2090,7 +2097,7 @@ int qmerge_main(int argc, char **argv)
 		quiet = save_quiet;
 	}
 
-	ret = qmerge_run(todo,cur_pkg_tree);
+	ret = qmerge_run(todo);
 	if (todo != NULL)
 		free_set(todo);
 
@@ -2098,7 +2105,6 @@ int qmerge_main(int argc, char **argv)
 		tree_close(_qmerge_binpkg_tree);
 	if (_qmerge_vdb_tree != NULL)
 		tree_close(_qmerge_vdb_tree);
-  if(cur_pkg_tree != NULL)
-      destroy_cur_pkg_tree(cur_pkg_tree);
+
 	return ret;
 }

@@ -48,6 +48,26 @@ static int compare_hash_num(char *hash1,char*hash2)
   return 0;
 }
 
+static char *get_fullname_package(depend_atom *datom)
+{
+  int cat_len,name_len=0;
+  char *package_name =NULL;
+
+  assert(datom!=NULL);
+  assert(datom->CATEGORY!=NULL);
+  assert(datom->PN!=NULL);
+
+  cat_len=strlen(datom->CATEGORY);
+  name_len=strlen(datom->PN);
+  package_name=calloc((cat_len +1+ name_len +1), sizeof(*package_name));
+  package_name[cat_len + 1 +name_len]='\0';
+
+  strcat(package_name,datom->CATEGORY);
+  strcat(package_name,"/");
+  strcat(package_name,datom->PN);
+
+  return package_name;
+}
 static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package_name,int verbose)
 {
   if(*root==NULL)
@@ -142,38 +162,18 @@ static int is_dir(char *string)
   return !S_ISREG(path.st_mode);
 }
 
-static void read_file_add_data(cur_pkg_tree_node **root,int verbose)
+static void read_file_add_data(cur_pkg_tree_node **root,int verbose,char *package_name)
 {
   FILE *CONTENTS=fopen("./CONTENTS","r");
   int byte_read = 0;
-  char *package_name;
-  char *pwd;
-  char *start_category;
   char *line_buffer=NULL;
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
   char *hash_buffer=NULL;
   char *key=NULL;
   size_t line_buffer_size=0;
-  int cat_len, name_len =0;
-  depend_atom *datom;
   
 
-  //get full package name
-  pwd = get_current_dir_name();
-  start_category=pwd+SIZE_STR_VAR_DB_PKG;
-  datom=atom_explode(start_category);
-  assert(datom!=NULL);
-  assert(datom->CATEGORY!=NULL);
-  assert(datom->PN!=NULL);
-  cat_len=strlen(datom->CATEGORY);
-  name_len=strlen(datom->PN);
-  package_name=calloc((cat_len +1+ name_len +1), sizeof(*package_name));
-  package_name[cat_len + 1 +name_len]='\0';
-  strcat(package_name,datom->CATEGORY);
-  strcat(package_name,"/");
-  strcat(package_name,datom->PN);
-  
   //read file CONTENTS
   while( (byte_read=getline(&line_buffer,&line_buffer_size,CONTENTS)) != -1 )
   {
@@ -217,13 +217,6 @@ static void read_file_add_data(cur_pkg_tree_node **root,int verbose)
 
   fclose(CONTENTS);
   free(line_buffer);
-  free(pwd);
-  free(datom);
-  free(package_name);
-  package_name=NULL;
-  pwd=NULL;
-  start_category=NULL;
-  package_name=NULL;
   hash_buffer=NULL;
   line_buffer=NULL;
   line_buffer_end=NULL;
@@ -254,27 +247,52 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
   return 0;
 }
 
-
-//publid
-int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose)
+//public
+int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose, depend_atom *atom)
 { 
   xchdir(path);
 
+  char *pwd;
+  char *start_category;
+  char *cur_dir_pkg_name = NULL;
+  char *package_name_correct;
+  depend_atom *datom;
   DIR *dir = NULL;
   struct dirent * dirent_struct = NULL;
+  int find_it =0;
+
+  pwd = get_current_dir_name();
+  start_category= pwd + SIZE_STR_VAR_DB_PKG;
+
+  if(strcmp(pwd,"/var/db/pkg"))
+  {
+    datom=atom_explode(start_category);
+    cur_dir_pkg_name=get_fullname_package(datom);
+  }
+  package_name_correct=get_fullname_package(atom);
 
   dir=opendir(".");
 
-  while((dirent_struct=readdir(dir)) != NULL)
+  while((dirent_struct=readdir(dir)) != NULL && !find_it )
   {
     char *name_file=dirent_struct->d_name;
     if(is_dir(name_file) && name_file[0] != '.'){
-      create_cur_pkg_tree(name_file,root,verbose);
-    }else if(!strcmp(name_file,"CONTENTS")){
-      read_file_add_data(root,verbose);
+      create_cur_pkg_tree(name_file,root,verbose,atom);
+    }else if(!strcmp(name_file,"CONTENTS") && cur_dir_pkg_name != NULL 
+        && !strcmp(cur_dir_pkg_name,package_name_correct)){
+
+      read_file_add_data(root,verbose,cur_dir_pkg_name);
+      find_it=1;
     }
   }
-  
+
+  free(datom);
+  free(pwd);
+  free(cur_dir_pkg_name);
+  free(package_name_correct);
+  pwd= start_category= package_name_correct= cur_dir_pkg_name= NULL;
+  datom= NULL;
+
   closedir(dir);
   xchdir("..");
   return 0;
