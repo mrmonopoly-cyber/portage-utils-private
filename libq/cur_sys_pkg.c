@@ -261,16 +261,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
   struct dirent * dirent_struct = NULL;
   int find_it =0;
 
-  pwd = get_current_dir_name();
-  start_category= pwd + SIZE_STR_VAR_DB_PKG;
-
-  if(strcmp(pwd,"/var/db/pkg"))
-  {
-    datom=atom_explode(start_category);
-    cur_dir_pkg_name=get_fullname_package(datom);
-  }
   package_name_correct=get_fullname_package(atom);
-
   dir=opendir(".");
 
   while((dirent_struct=readdir(dir)) != NULL && !find_it )
@@ -278,21 +269,28 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
     char *name_file=dirent_struct->d_name;
     if(is_dir(name_file) && name_file[0] != '.'){
       create_cur_pkg_tree(name_file,root,verbose,atom);
-    }else if(!strcmp(name_file,"CONTENTS") && cur_dir_pkg_name != NULL 
-        && !strcmp(cur_dir_pkg_name,package_name_correct)){
+    }else if(!strcmp(name_file,"CONTENTS")){
+      pwd = get_current_dir_name();
+      start_category= pwd + SIZE_STR_VAR_DB_PKG;
+      datom=atom_explode(start_category);
+      cur_dir_pkg_name=get_fullname_package(datom);
 
-      read_file_add_data(root,verbose,cur_dir_pkg_name);
+
+      if(!strcmp(cur_dir_pkg_name,package_name_correct)){
+        read_file_add_data(root,verbose,cur_dir_pkg_name);
+      }
       find_it=1;
+      free(pwd);
+      free(datom);
+      free(cur_dir_pkg_name);
+      pwd= start_category= cur_dir_pkg_name= NULL;
+      datom= NULL;
     }
   }
 
-  free(datom);
-  free(pwd);
-  free(cur_dir_pkg_name);
-  free(package_name_correct);
-  pwd= start_category= package_name_correct= cur_dir_pkg_name= NULL;
-  datom= NULL;
 
+  free(package_name_correct);
+  package_name_correct= NULL;
   closedir(dir);
   xchdir("..");
   return 0;
