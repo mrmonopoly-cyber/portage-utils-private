@@ -100,8 +100,8 @@ struct llist_char_t {
 
 typedef struct llist_char_t llist_char;
 
-static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
-static void pkg_merge(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node *);
+static void pkg_fetch(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node **);
+static void pkg_merge(int, const depend_atom *, const tree_match_ctx *,cur_pkg_tree_node **);
 static int pkg_unmerge(tree_pkg_ctx *, depend_atom *, set *, int, char **, int, char **);
 
 static bool
@@ -971,7 +971,7 @@ pkg_extract_xpak_cb(
 
 /* oh shit getting into pkg mgt here. FIXME: write a real dep resolver. */
 static void
-pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_pkg_tree_node *cur_pkg_tree)
+pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_pkg_tree_node **cur_pkg_tree)
 {
 	set            *objs;
 	tree_ctx       *vdb;
@@ -1401,7 +1401,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_p
   
 		ret = merge_tree_at(AT_FDCWD, "image",
 				AT_FDCWD, portroot, contents, eprefix_len,
-				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, cur_pkg_tree,category);
+				&objs, &cpath, cp_argc, cp_argv, cpm_argc, cpm_argv, *cur_pkg_tree,category);
 
 		free(cpath);
 
@@ -1778,12 +1778,12 @@ pkg_verify_checksums(
 }
 
 static void
-pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_pkg_tree_node *cur_pkg_tree)
+pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_pkg_tree_node **cur_pkg_tree)
 {
 	int  verifyret;
 	char buf[_Q_PATH_MAX];
   
-  create_cur_pkg_tree(portvdb,&cur_pkg_tree,verbose,mpkg->atom);
+  create_cur_pkg_tree(portvdb,cur_pkg_tree,verbose,mpkg->atom);
 
 	/* qmerge -pv patch */
 	if (pretend) {
@@ -1996,8 +1996,8 @@ qmerge_run(set *todo)
 			for (i = 0; i < todo_cnt; i++) {
 				atom = atom_explode(todo_strs[i]);
 				bpkg = best_version(atom, BV_BINPKG);    
-				if (bpkg != NULL) 
-					pkg_fetch(0, atom, bpkg,cur_pkg_tree);
+				if (bpkg != NULL){
+					pkg_fetch(0, atom, bpkg,&cur_pkg_tree);
 					tree_match_close(bpkg);
 					ret = EXIT_SUCCESS;
 				} else {

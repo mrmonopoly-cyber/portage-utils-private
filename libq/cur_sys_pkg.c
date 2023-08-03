@@ -293,7 +293,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
   }
 
   buffer_pkgs= &(*root)->pkg_name_buffer;
-  if(!find_package_in_list(*buffer_pkgs,package_name_correct)){
+  if(*buffer_pkgs!=NULL && !find_package_in_list(*buffer_pkgs,package_name_correct)){
     add_package_to_buffer(buffer_pkgs,package_name_correct,PKG_LIST_BUFFER_SIZE);
   }else {
     free(package_name_correct);
