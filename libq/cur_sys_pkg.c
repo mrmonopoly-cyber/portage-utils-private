@@ -16,6 +16,7 @@
 #include "hash.h"
 #include "xchdir.h"
 #include "cur_sys_pkg.h"
+#include "cur_sys_pkg_list.h"
 
 
 #define HASH_SIZE 32
@@ -78,6 +79,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
     (*root)->package_name=package_name;
     (*root)->greater=NULL;
     (*root)->minor=NULL;
+    (*root)->pkg_name_buffer=NULL;
     return;
   }
 
@@ -207,7 +209,7 @@ static void read_file_add_data(cur_pkg_tree_node **root,int verbose,char *packag
       key=hash_from_string(line_buffer_start_path,line_buffer_end - line_buffer_start_path);
 
       //tree
-      add_node(root,hash_buffer,key,strdup(package_name),verbose);
+      add_node(root,hash_buffer,key,package_name,verbose);
     }
       key=NULL;
       hash_buffer=NULL;
@@ -259,15 +261,17 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
   depend_atom *datom;
   DIR *dir = NULL;
   struct dirent * dirent_struct = NULL;
+  pkg_list_buffer **buffer_pkgs= NULL;
   int find_it =0;
-
+  
   package_name_correct=get_fullname_package(atom);
+
   dir=opendir(".");
 
   while((dirent_struct=readdir(dir)) != NULL && !find_it )
   {
     char *name_file=dirent_struct->d_name;
-    if(is_dir(name_file) && name_file[0] != '.'){
+    if(is_dir(name_file) && name_file[0] != '.' && (!strcmp(name_file,atom->CATEGORY) || !strcmp(path,atom->CATEGORY))){
       create_cur_pkg_tree(name_file,root,verbose,atom);
     }else if(!strcmp(name_file,"CONTENTS")){
       pwd = get_current_dir_name();
@@ -277,7 +281,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
 
 
       if(!strcmp(cur_dir_pkg_name,package_name_correct)){
-        read_file_add_data(root,verbose,cur_dir_pkg_name);
+        read_file_add_data(root,verbose,package_name_correct);
       }
       find_it=1;
       free(pwd);
@@ -288,9 +292,14 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
     }
   }
 
+  buffer_pkgs= &(*root)->pkg_name_buffer;
+  if(!find_package_in_list(*buffer_pkgs,package_name_correct)){
+    add_package_to_buffer(buffer_pkgs,package_name_correct,PKG_LIST_BUFFER_SIZE);
+  }else {
+    free(package_name_correct);
+    package_name_correct= NULL;
+  }
 
-  free(package_name_correct);
-  package_name_correct= NULL;
   closedir(dir);
   xchdir("..");
   return 0;
@@ -316,8 +325,13 @@ int is_default(cur_pkg_tree_node *root,char *file_path_complete,const char *cate
 
 void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
 {
+  
   if(root!=NULL)
   {
+    if(root->pkg_name_buffer != NULL){
+      destroy_pkg_list_buffer(root->pkg_name_buffer);
+      root->pkg_name_buffer=NULL;
+    }
     destroy_cur_pkg_tree(root->greater);
     destroy_cur_pkg_tree(root->minor);
 
@@ -327,7 +341,6 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
     free(root->key);
     root->key=NULL;
 
-    free(root->package_name);
     root->package_name=NULL;
 
     free(root);
