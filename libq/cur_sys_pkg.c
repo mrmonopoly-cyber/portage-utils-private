@@ -16,20 +16,20 @@
 #include "hash.h"
 #include "xchdir.h"
 #include "cur_sys_pkg.h"
-#include "cur_sys_pkg_list.h"
 
 
 #define HASH_SIZE 32
 #define SIZE_STR_VAR_DB_PKG 12
 
+unsigned int verbose = 0;
 //private
 typedef struct cur_pkg_tree_node {
   char *key;
   char *hash_buffer;
   char *package_name;
+  unsigned int safe_to_free_package_name;
   struct cur_pkg_tree_node *greater;
   struct cur_pkg_tree_node *minor;
-  struct pkg_list_buffer *pkg_name_buffer; 
 }cur_pkg_tree_node;
 
 static unsigned int conv_char_int(char dig)
@@ -78,7 +78,8 @@ static char *get_fullname_package(depend_atom *datom)
 
   return package_name;
 }
-static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package_name,int verbose)
+static void add_node(cur_pkg_tree_node **root,char *data,char *key,
+                     char *package_name,unsigned int safe_to_free)
 {
   if(*root==NULL)
   {
@@ -86,6 +87,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
     (*root)->key=key;
     (*root)->hash_buffer=data;
     (*root)->package_name=package_name;
+    (*root)->safe_to_free_package_name=safe_to_free;
     (*root)->greater=NULL;
     (*root)->minor=NULL;
     (*root)->pkg_name_buffer=NULL;
@@ -100,10 +102,10 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,char *package
   }
   switch (is_greater) {
     case 1:
-      add_node(&(*root)->greater,data,key,package_name,verbose);
+      add_node(&(*root)->greater,data,key,package_name,safe_to_free);
       break;
     case -1:
-      add_node(&(*root)->minor,data,key,package_name,verbose);
+      add_node(&(*root)->minor,data,key,package_name,safe_to_free);
       break;
   }
 }
@@ -173,10 +175,11 @@ static int is_dir(char *string)
   return !S_ISREG(path.st_mode);
 }
 
-static void read_file_add_data(cur_pkg_tree_node **root,int verbose,char *package_name)
+static void read_file_add_data(cur_pkg_tree_node **root,char *package_name)
 {
   FILE *CONTENTS=fopen("./CONTENTS","r");
   int byte_read = 0;
+  unsigned int safe_to_free = 1;
   char *line_buffer=NULL;
   char *line_buffer_end=NULL;
   char *line_buffer_start_path=NULL;
@@ -218,7 +221,8 @@ static void read_file_add_data(cur_pkg_tree_node **root,int verbose,char *packag
       key=hash_from_string(line_buffer_start_path,line_buffer_end - line_buffer_start_path);
 
       //tree
-      add_node(root,hash_buffer,key,package_name,verbose);
+      add_node(root,hash_buffer,key,package_name,safe_to_free);
+      safe_to_free=0;
     }
       key=NULL;
       hash_buffer=NULL;
@@ -259,10 +263,10 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
 }
 
 //public
-int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose, depend_atom *atom)
+int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_input, depend_atom *atom)
 { 
   xchdir(path);
-
+  
   char *pwd;
   char *start_category;
   char *cur_dir_pkg_name = NULL;
@@ -273,6 +277,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
   pkg_list_buffer **buffer_pkgs= NULL;
   int find_it =0;
   
+  verbose = verbose_input;
   package_name_correct=get_fullname_package(atom);
 
   dir=opendir(".");
@@ -289,10 +294,11 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
       cur_dir_pkg_name=get_fullname_package(datom);
 
 
-      if(!strcmp(cur_dir_pkg_name,package_name_correct)){
-        read_file_add_data(root,verbose,package_name_correct);
-      }
       find_it=1;
+      if(!strcmp(cur_dir_pkg_name,package_name_correct)){
+        read_file_add_data(root,package_name_correct);
+        find_it=2;
+      }
       free(pwd);
       free(datom);
       free(cur_dir_pkg_name);
@@ -301,10 +307,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose,
     }
   }
 
-  if(find_it && *root != NULL){
-    buffer_pkgs= &(*root)->pkg_name_buffer;
-    add_package_to_buffer(buffer_pkgs,package_name_correct,PKG_LIST_BUFFER_SIZE);
-  }else{
+  if(find_it!=2){
     free(package_name_correct);
     package_name_correct= NULL;
   }
@@ -337,10 +340,6 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
   
   if(root!=NULL)
   {
-    if(root->pkg_name_buffer != NULL){
-      destroy_pkg_list_buffer(root->pkg_name_buffer);
-      root->pkg_name_buffer=NULL;
-    }
     destroy_cur_pkg_tree(root->greater);
     destroy_cur_pkg_tree(root->minor);
 
@@ -349,7 +348,10 @@ void destroy_cur_pkg_tree(cur_pkg_tree_node *root)
 
     free(root->key);
     root->key=NULL;
-
+    
+    if(root->safe_to_free_package_name){
+      free(root->package_name);
+    }
     root->package_name=NULL;
 
     free(root);
