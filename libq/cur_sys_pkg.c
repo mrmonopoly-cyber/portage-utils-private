@@ -23,6 +23,15 @@
 #define SIZE_STR_VAR_DB_PKG 12
 
 //private
+typedef struct cur_pkg_tree_node {
+  char *key;
+  char *hash_buffer;
+  char *package_name;
+  struct cur_pkg_tree_node *greater;
+  struct cur_pkg_tree_node *minor;
+  struct pkg_list_buffer *pkg_name_buffer; 
+}cur_pkg_tree_node;
+
 static unsigned int conv_char_int(char dig)
 {
   if((int) dig > 57) 

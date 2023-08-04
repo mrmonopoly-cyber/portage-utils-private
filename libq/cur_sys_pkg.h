@@ -2,15 +2,7 @@
 #define CUR_SYS_PKG
 
 //BST node with an entry for key(based on hash of filename) hash found in /var/db/pkg/.../CONTENTS, package fullname of the package
-typedef struct cur_pkg_tree_node {
-  char *key;
-  char *hash_buffer;
-  char *package_name;
-  struct cur_pkg_tree_node *greater;
-  struct cur_pkg_tree_node *minor;
-  struct pkg_list_buffer *pkg_name_buffer; 
-}cur_pkg_tree_node;
-
+typedef struct cur_pkg_tree_node cur_pkg_tree_node;
 
 void in_order_visit(cur_pkg_tree_node *root);
 //create the tree searching from the path with in
