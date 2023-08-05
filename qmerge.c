@@ -1596,7 +1596,6 @@ for (; (buf = strtok_r(buf, "\n", &savep)) != NULL; buf = NULL) {
         protected = 0;
         if (hash != NULL)  /* if file was not removed */
             protected = strcmp(e->digest, (const char *)hash);
-
 				}
 				break;
 
