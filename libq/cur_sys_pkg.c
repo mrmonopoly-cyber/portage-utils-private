@@ -21,7 +21,6 @@
 #define HASH_SIZE 32
 #define SIZE_STR_VAR_DB_PKG 12
 
-unsigned int verbose_cur_sys_cur_sys = 0;
 //private
 typedef struct cur_pkg_tree_node {
   char *key;
@@ -94,7 +93,7 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,
   }
 
   int is_greater=compare_hash_num((*root)->key,key);
-  if(is_greater== 0 && verbose_cur_sys_cur_sys) 
+  if(is_greater== 0 ) 
   {
     printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
            ,package_name,(*root)->package_name,data);
@@ -262,8 +261,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
 }
 
 //public
-int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_input, 
-                        depend_atom *atom)
+int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, depend_atom *atom)
 { 
   char *package_name;
   char *name_file;
@@ -271,7 +269,6 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_
   struct dirent * dirent_struct = NULL;
   int find_it =0;
 
-  verbose_cur_sys_cur_sys = verbose_input;
   xchdir(path);
   dir=opendir(".");
 
@@ -280,7 +277,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_
     name_file=dirent_struct->d_name;
     if(is_dir(name_file) && name_file[0] != '.' && 
       (!strcmp(name_file,atom->CATEGORY) || strstr(name_file,atom->PN))){
-      create_cur_pkg_tree(name_file,root,verbose_cur_sys_cur_sys,atom);
+      create_cur_pkg_tree(name_file,root,atom);
     }else if(!strcmp(name_file,"CONTENTS")){
       package_name=get_fullname_package(atom);
       read_file_add_data(root,package_name);
