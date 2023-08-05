@@ -289,7 +289,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_
     }
   }
 
-  if(find_it){
+  if(!find_it){
     free(package_name_correct);
     package_name_correct= NULL;
   }
