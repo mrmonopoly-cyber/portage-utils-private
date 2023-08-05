@@ -21,7 +21,7 @@
 #define HASH_SIZE 32
 #define SIZE_STR_VAR_DB_PKG 12
 
-unsigned int verbose = 0;
+unsigned int verbose_cur_sys_cur_sys = 0;
 //private
 typedef struct cur_pkg_tree_node {
   char *key;
@@ -90,12 +90,11 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,
     (*root)->safe_to_free_package_name=safe_to_free;
     (*root)->greater=NULL;
     (*root)->minor=NULL;
-    (*root)->pkg_name_buffer=NULL;
     return;
   }
 
   int is_greater=compare_hash_num((*root)->key,key);
-  if(is_greater== 0 && verbose) 
+  if(is_greater== 0 && verbose_cur_sys_cur_sys) 
   {
     printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
            ,package_name,(*root)->package_name,data);
@@ -263,21 +262,17 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
 }
 
 //public
-int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_input, depend_atom *atom)
+int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_input, 
+                        depend_atom *atom)
 { 
   xchdir(path);
   
-  char *pwd;
-  char *start_category;
-  char *cur_dir_pkg_name = NULL;
   char *package_name_correct;
-  depend_atom *datom;
   DIR *dir = NULL;
   struct dirent * dirent_struct = NULL;
-  pkg_list_buffer **buffer_pkgs= NULL;
   int find_it =0;
   
-  verbose = verbose_input;
+  verbose_cur_sys_cur_sys = verbose_input;
   package_name_correct=get_fullname_package(atom);
 
   dir=opendir(".");
@@ -285,29 +280,16 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_
   while((dirent_struct=readdir(dir)) != NULL && !find_it )
   {
     char *name_file=dirent_struct->d_name;
-    if(is_dir(name_file) && name_file[0] != '.' && (!strcmp(name_file,atom->CATEGORY) || !strcmp(path,atom->CATEGORY))){
-      create_cur_pkg_tree(name_file,root,verbose,atom);
+    if(is_dir(name_file) && name_file[0] != '.' && (!strcmp(name_file,atom->CATEGORY) 
+         || strstr(name_file,atom->PN))){
+      create_cur_pkg_tree(name_file,root,verbose_cur_sys_cur_sys,atom);
     }else if(!strcmp(name_file,"CONTENTS")){
-      pwd = get_current_dir_name();
-      start_category= pwd + SIZE_STR_VAR_DB_PKG;
-      datom=atom_explode(start_category);
-      cur_dir_pkg_name=get_fullname_package(datom);
-
-
+      read_file_add_data(root,package_name_correct);
       find_it=1;
-      if(!strcmp(cur_dir_pkg_name,package_name_correct)){
-        read_file_add_data(root,package_name_correct);
-        find_it=2;
-      }
-      free(pwd);
-      free(datom);
-      free(cur_dir_pkg_name);
-      pwd= start_category= cur_dir_pkg_name= NULL;
-      datom= NULL;
     }
   }
 
-  if(find_it!=2){
+  if(find_it){
     free(package_name_correct);
     package_name_correct= NULL;
   }
