@@ -1119,9 +1119,7 @@ pkg_merge(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_p
 			tree_close(vdb);
 			tree_match_close(previnst);
 
-  // if(cur_pkg_tree != NULL){
-  //   destroy_cur_pkg_tree(cur_pkg_tree);
-  // }
+
 			return;
 		}
 	}
