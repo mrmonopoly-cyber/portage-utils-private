@@ -265,33 +265,27 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
 int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, int verbose_input, 
                         depend_atom *atom)
 { 
-  xchdir(path);
-  
-  char *package_name_correct;
+  char *package_name;
+  char *name_file;
   DIR *dir = NULL;
   struct dirent * dirent_struct = NULL;
   int find_it =0;
-  
-  verbose_cur_sys_cur_sys = verbose_input;
-  package_name_correct=get_fullname_package(atom);
 
+  verbose_cur_sys_cur_sys = verbose_input;
+  xchdir(path);
   dir=opendir(".");
 
-  while((dirent_struct=readdir(dir)) != NULL && !find_it )
+  while((!find_it && dirent_struct=readdir(dir)) != NULL)
   {
-    char *name_file=dirent_struct->d_name;
-    if(is_dir(name_file) && name_file[0] != '.' && (!strcmp(name_file,atom->CATEGORY) 
-         || strstr(name_file,atom->PN))){
+    name_file=dirent_struct->d_name;
+    if(is_dir(name_file) && name_file[0] != '.' && 
+      (!strcmp(name_file,atom->CATEGORY) || strstr(name_file,atom->PN))){
       create_cur_pkg_tree(name_file,root,verbose_cur_sys_cur_sys,atom);
     }else if(!strcmp(name_file,"CONTENTS")){
-      read_file_add_data(root,package_name_correct);
+      package_name=get_fullname_package(atom);
+      read_file_add_data(root,package_name);
       find_it=1;
     }
-  }
-
-  if(!find_it){
-    free(package_name_correct);
-    package_name_correct= NULL;
   }
 
   closedir(dir);
