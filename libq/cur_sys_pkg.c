@@ -22,6 +22,8 @@
 #define SIZE_STR_VAR_DB_PKG 12
 
 //private
+
+//data
 typedef struct cur_pkg_tree_node {
   char *key;
   char *hash_buffer;
@@ -31,6 +33,8 @@ typedef struct cur_pkg_tree_node {
   struct cur_pkg_tree_node *minor;
 }cur_pkg_tree_node;
 
+
+//functions
 static unsigned int conv_char_int(char dig)
 {
   if((int) dig > 57) 
@@ -93,18 +97,16 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,
   }
 
   int is_greater=compare_hash_num((*root)->key,key);
-  if(is_greater== 0 ) 
-  {
-    printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
-           ,package_name,(*root)->package_name,data);
-  }
+  
   switch (is_greater) {
+    case 0:
+          printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
+                 ,package_name,(*root)->package_name,data);
+      return ;
     case 1:
-      add_node(&(*root)->greater,data,key,package_name,safe_to_free);
-      break;
+      return add_node(&(*root)->greater,data,key,package_name,safe_to_free);
     case -1:
-      add_node(&(*root)->minor,data,key,package_name,safe_to_free);
-      break;
+      return add_node(&(*root)->minor,data,key,package_name,safe_to_free);
   }
 }
 
@@ -276,8 +278,10 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, depend_atom 
   {
     name_file=dirent_struct->d_name;
     if(is_dir(name_file) && name_file[0] != '.' && 
-      (!strcmp(name_file,atom->CATEGORY) || strstr(name_file,atom->PN))){
-      create_cur_pkg_tree(name_file,root,atom);
+      (!strcmp(name_file,atom->CATEGORY) || strstr(name_file,atom->PN))){ 
+        //this case will possibly load also a wrong package 
+        //example car and car-lib but it should not be a problem 
+        create_cur_pkg_tree(name_file,root,atom);
     }else if(!strcmp(name_file,"CONTENTS")){
       package_name=get_fullname_package(atom);
       read_file_add_data(root,package_name);
