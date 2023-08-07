@@ -26,7 +26,6 @@ QFILES = \
 	xpak.c xpak.h \
 	xregex.c xregex.h \
 	xsystem.c xsystem.h \
-	cur_sys_pkg_list.c cur_sys_pkg_list.h \
 	cur_sys_pkg.c cur_sys_pkg.h \
 	$(NULL)
 
