@@ -1780,7 +1780,7 @@ pkg_fetch(int level, const depend_atom *qatom, const tree_match_ctx *mpkg, cur_p
 	int  verifyret;
 	char buf[_Q_PATH_MAX];
   
-  create_cur_pkg_tree(portvdb,cur_pkg_tree,verbose,mpkg->atom);
+  create_cur_pkg_tree(portvdb,cur_pkg_tree,mpkg->atom);
 
 	/* qmerge -pv patch */
 	if (pretend) {

@@ -274,7 +274,7 @@ int create_cur_pkg_tree(const char *path, cur_pkg_tree_node **root, depend_atom 
   xchdir(path);
   dir=opendir(".");
 
-  while((!find_it && dirent_struct=readdir(dir)) != NULL)
+  while(!find_it && (dirent_struct=readdir(dir)) != NULL)
   {
     name_file=dirent_struct->d_name;
     if(is_dir(name_file) && name_file[0] != '.' && 
