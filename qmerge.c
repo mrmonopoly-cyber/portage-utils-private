@@ -2066,9 +2066,6 @@ int qmerge_main(int argc, char **argv)
 	if (!uninstall)
 		qmerge_initialize();
 
-  // cur_pkg_tree_node *cur_pkg_tree=NULL;
-  // create_cur_pkg_tree(portvdb,&cur_pkg_tree,verbose);
-  //
 	/* Make sure the user wants to do it */
 	if (interactive) {
 		int save_pretend = pretend;
