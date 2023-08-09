@@ -1,7 +1,6 @@
 #include "config.h"
 
-#include <openssl/md5.h>
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 #include <assert.h>
 #include <sys/stat.h> 
 #include <sys/types.h>
@@ -15,6 +14,7 @@
 #include "atom.h"
 #include "hash.h"
 #include "xchdir.h"
+#include "hash_md5_sha1.h"
 #include "cur_sys_pkg.h"
 
 
@@ -112,43 +112,9 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,
 
 static char *hash_from_file(char *file_path_complete)
 {
-  FILE *file_to_hash;
-  char buf[512];
-  unsigned char hex_hash[HASH_SIZE+1];
-  hex_hash[HASH_SIZE]='\0';
-  MD5_CTX ctx;
-  
   char *out = NULL;
-  out=xmalloc(HASH_SIZE+1* sizeof(*out));
-  out[HASH_SIZE]='\0';
-
-  file_to_hash = fopen(file_path_complete,"r");
-  if(file_to_hash == NULL)
-  {
-    fprintf(stderr, "%s not found\n",file_path_complete);
-    out=xmalloc(3* sizeof(*out));
-    out[0]='-';
-    out[1]='1';
-    out[2]='\0';
-
-    fclose(file_to_hash);
-
-    return out;
-  }
-  MD5_Init(&ctx);
-
-  size_t byte_read=0;
-  while ( ( byte_read = fread(buf,1,512,file_to_hash) ) > 0) {
-    MD5_Update(&ctx,buf,byte_read);
-  }
-  MD5_Final(hex_hash,&ctx);
-
-  hash_hex(out,hex_hash,(HASH_SIZE>>1));
-  out[HASH_SIZE]='\0';
-
-  fclose(file_to_hash);
-
-  return out;
+  out=hash_file(file_path_complete,HASH_MD5);
+  return strdup(out);
 }
 
 char *hash_from_string(char *str,size_t len)
@@ -157,13 +123,16 @@ char *hash_from_string(char *str,size_t len)
   char *hash_final=xmalloc(HASH_SIZE+1*sizeof(*hash_final));
   hash_final[HASH_SIZE]='\0';
   hex_buf[HASH_SIZE]='\0';
-  MD5_CTX ctx;
+  unsigned int HASH_MD5_len = (HASH_SIZE>>1);
   
-  MD5_Init(&ctx);
-  MD5_Update(&ctx,str,len);
-  MD5_Final(hex_buf,&ctx);
-  hash_hex(hash_final,hex_buf,(HASH_SIZE>>1));
-  
+  EVP_MD_CTX* md5Context = EVP_MD_CTX_new();
+  EVP_MD_CTX_init(md5Context);
+  EVP_DigestInit_ex(md5Context, EVP_md5(), NULL);
+  EVP_DigestUpdate(md5Context, str,len); 
+  EVP_DigestFinal_ex(md5Context, hex_buf, &HASH_MD5_len);
+  EVP_MD_CTX_free(md5Context);
+  hash_hex(hash_final,hex_buf,HASH_MD5_len);
+
   return hash_final;
 }
 
@@ -246,10 +215,12 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
   { 
     int is_greater=compare_hash_num(root->key,key);
   
-    if(is_greater == 0 && !strcmp(category,root->package_name))
-      return !strcmp(hash,root->hash_buffer);
-
     switch (is_greater) {
+      case 0:
+        if(!strcmp(category,root->package_name)){
+          return !strcmp(hash,root->hash_buffer);
+        }
+        break;
       case 1:
         return find_in_tree(root->greater,key,hash,category);
         break;
@@ -341,8 +312,7 @@ void in_order_visit(cur_pkg_tree_node *root)
   if(root!=NULL)
   {
     if(root->minor!=NULL) in_order_visit(root->minor);
-    printf("[%s,%s,%s,%s]\n",root->key,root->hash_buffer,
-           root->hash_buffer,root->package_name);
+    printf("[%s,%s,%s]\n",root->key,root->hash_buffer,root->package_name);
     if(root->greater!=NULL) in_order_visit(root->greater);
   }
 }
