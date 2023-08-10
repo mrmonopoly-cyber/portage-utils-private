@@ -96,7 +96,7 @@ contents_parse_line(char *line)
  * Parse a line of CONTENTS file and provide access to the individual fields
  * updating an exsiting contents_entry if possible, otherwise creating a new one
  * It's possible to give the length of the line, if you don't know pass -1 e the function
- * will compute themself
+ * will compute itself 
  */
 
 int update_entry_contents_parse_line(contents_entry *entry,char *line,int line_len)
