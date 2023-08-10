@@ -186,9 +186,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
   
     switch (is_greater) {
       case 0:
-        if(!strcmp(category,root->package_name)){
-          return !strcmp(hash,root->hash_buffer);
-        }
+        return !strcmp(category,root->hash_buffer && !strcmp(hash,root->package_name);
         break;
       case 1:
         return find_in_tree(root->greater,key,hash,category);
