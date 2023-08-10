@@ -82,6 +82,7 @@ static char *get_fullname_package(depend_atom *datom)
 
   return package_name;
 }
+
 static void add_node(cur_pkg_tree_node **root,char *data,char *key,
                      char *package_name,unsigned int safe_to_free)
 {
@@ -99,11 +100,12 @@ static void add_node(cur_pkg_tree_node **root,char *data,char *key,
 
   int is_greater=compare_hash_num((*root)->key,key);
   
+  if(!is_greater){
+    printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
+            ,package_name,(*root)->package_name,data);
+  }
+
   switch (is_greater) {
-    case 0:
-          printf("there are two packages wich update the same file %s %s, the hash of the file is %s\n"
-                 ,package_name,(*root)->package_name,data);
-      return ;
     case 1:
       return add_node(&(*root)->greater,data,key,package_name,safe_to_free);
     case -1:
@@ -160,11 +162,8 @@ static void read_file_add_data(cur_pkg_tree_node **root,char *package_name)
     if(line_buffer[0]=='o' && line_buffer[1]=='b' && line_buffer[2]=='j')
     {
       char *key=NULL;
-      if(line_cont == NULL){
-        line_cont=contents_parse_line(line_buffer);
-      }else {
-        assert(!update_entry_contents_parse_line(line_cont,line_buffer,byte_read));
-      }
+      line_cont=contents_parse_line_general(line_buffer,byte_read);
+      assert(line_cont!=NULL);
       key=hash_from_string(line_cont->name,(size_t) ((line_cont->digest-1)- line_cont->name));
       add_node(root,strdup(line_cont->digest),key,package_name,safe_to_free);
       safe_to_free=0;
@@ -186,7 +185,7 @@ static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char
   
     switch (is_greater) {
       case 0:
-        return !strcmp(category,root->hash_buffer && !strcmp(hash,root->package_name);
+        return !strcmp(hash,root->hash_buffer) && !strcmp(category,root->package_name);
         break;
       case 1:
         return find_in_tree(root->greater,key,hash,category);
