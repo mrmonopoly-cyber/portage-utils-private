@@ -11,9 +11,10 @@
 #include <stdio.h>
 #include <xalloc.h>
 
+#include "xchdir.h"
+#include "contents.h"
 #include "atom.h"
 #include "hash.h"
-#include "xchdir.h"
 #include "hash_md5_sha1.h"
 #include "cur_sys_pkg.h"
 
@@ -148,63 +149,31 @@ static void read_file_add_data(cur_pkg_tree_node **root,char *package_name)
 {
   FILE *CONTENTS=fopen("./CONTENTS","r");
   int byte_read = 0;
-  unsigned int safe_to_free = 1;
+  int safe_to_free = 1;
   char *line_buffer=NULL;
-  char *line_buffer_end=NULL;
-  char *line_buffer_start_path=NULL;
-  char *hash_buffer=NULL;
-  char *key=NULL;
   size_t line_buffer_size=0;
-  
+  contents_entry *line_cont=NULL;
 
   //read file CONTENTS
   while( (byte_read=getline(&line_buffer,&line_buffer_size,CONTENTS)) != -1 )
   {
     if(line_buffer[0]=='o' && line_buffer[1]=='b' && line_buffer[2]=='j')
     {
-    	line_buffer_end=line_buffer+(byte_read-1);
-      while( !(60 < *line_buffer_end) && !(71> *line_buffer_end) )
-      {
-        *line_buffer_end='\0';
-        --line_buffer_end;
+      char *key=NULL;
+      if(line_cont == NULL){
+        line_cont=contents_parse_line(line_buffer);
+      }else {
+        assert(!update_entry_contents_parse_line(line_cont,line_buffer,byte_read));
       }
-      --line_buffer_end;
-
-      //timestamp
-      while(*line_buffer_end != ' ')
-      {
-        *line_buffer_end='\0';
-        --line_buffer_end;
-      }
-
-      //hash
-      *line_buffer_end = '\0';
-      line_buffer_end-=HASH_SIZE;
-      hash_buffer=strdup(line_buffer_end);
-      hash_buffer[HASH_SIZE] = '\0';
-  
-      //path
-      --line_buffer_end;
-      *line_buffer_end='\0';
-      line_buffer_start_path=line_buffer+4;
-      key=hash_from_string(line_buffer_start_path,line_buffer_end - line_buffer_start_path);
-
-      //tree
-      add_node(root,hash_buffer,key,package_name,safe_to_free);
+      key=hash_from_string(line_cont->name,(size_t) ((line_cont->digest-1)- line_cont->name));
+      add_node(root,strdup(line_cont->digest),key,package_name,safe_to_free);
       safe_to_free=0;
-    }
       key=NULL;
-      hash_buffer=NULL;
-      line_buffer_start_path=NULL;
-      line_buffer_end=NULL;
+    }
   }
 
   fclose(CONTENTS);
   free(line_buffer);
-  hash_buffer=NULL;
-  line_buffer=NULL;
-  line_buffer_end=NULL;
-  line_buffer_start_path=NULL;
 }
 
 static int find_in_tree(cur_pkg_tree_node *root,char * key,char *hash,const char *category)

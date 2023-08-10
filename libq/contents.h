@@ -25,5 +25,6 @@ typedef struct {
 } contents_entry;
 
 contents_entry *contents_parse_line(char *line);
+int update_entry_contents_parse_line(contents_entry *entry,char *line, int line_len);
 
 #endif
